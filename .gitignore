@@ -249,7 +249,7 @@ dmypy.json
 
 # token and ids
 token.txt
-afk_channel_id.txt
+schedule_channel_id.txt
 
 # images
 images/
