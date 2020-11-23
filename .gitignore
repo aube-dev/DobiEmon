@@ -253,3 +253,6 @@ schedule_channel_id.txt
 
 # images
 images/
+
+# schedule file
+Schedule.xlsx
