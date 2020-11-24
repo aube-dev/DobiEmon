@@ -105,6 +105,9 @@ async def 도움말(ctx):
                     value="-일정삭제 를 입력하고 한 칸 띄어쓰기 한 뒤, 삭제할 일정의 이름을 입력하세요."
                     + "\nEX) -일정삭제 검단모임"
                     + "\n주의) 같은 이름을 가진 다른 일정이 있다면 모두 삭제됩니다.", inline=False)
+    embed.add_field(name="둘 중 하나를 랜덤으로 뽑고 싶다면...",
+                    value="-소라고동 을 입력하고 한 칸 띄어쓰기 한 뒤, 뽑고 싶은 것 중 하나를 입력하고, "
+                          + "한 칸 띄어쓰기 한 뒤, 나머지 하나를 입력하세요.\n" + "EX) -소라고동 짜장면 짬뽕", inline=False)
     embed.set_footer(text="by 도비에몽")
     await ctx.send(embed=embed)
 
@@ -249,6 +252,18 @@ async def 일정삭제(ctx, schedule_arg):
             del_schedule_by_idx(j)
             await ctx.send(embed=embed)
         j = j + 1
+
+
+@bot.command()
+async def 소라고동(ctx, arg1, arg2):
+    srgd_list = [arg1, arg2]
+    srgd_rand = np.random.choice(srgd_list, size=1)
+    srgd = srgd_rand[0]
+
+    embed = discord.Embed(title="둘 중에서...",
+                          description=srgd + " 선택해.")
+    embed.set_footer(text="by 마법의 소라고동 in 도비에몽")
+    await ctx.send(embed=embed)
 
 bot.loop.create_task(scheduler())
 bot.run(token)
