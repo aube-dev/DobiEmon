@@ -265,5 +265,18 @@ async def 소라고둥(ctx, arg1, arg2):
     embed.set_footer(text="by 마법의 소라고둥 in 도비에몽")
     await ctx.send(embed=embed)
 
+
+@bot.command()
+async def 처벌(ctx):
+    ban_list = ['2초', '5초', '10초', '1분', '2분', '5분', '10분', '15분', '30분', '1시간', '용서']
+    ban_list_p = [0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.05, 0.05]
+    ban_rand = np.random.choice(ban_list, size=1, p=ban_list_p)
+    ban_result = ban_rand[0]
+
+    embed = discord.Embed(title="이번 사건은...",
+                          description=ban_result + "만큼 처벌해요.")
+    embed.set_footer(text="by 도비에몽")
+    await ctx.send(embed=embed)
+
 bot.loop.create_task(scheduler())
 bot.run(token)
