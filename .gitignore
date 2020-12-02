@@ -255,4 +255,4 @@ schedule_channel_id.txt
 images/
 
 # database
-.db
+*.db
