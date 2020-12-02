@@ -250,9 +250,10 @@ dmypy.json
 # token and ids
 token.txt
 schedule_channel_id.txt
+information.json
 
 # images
 images/
 
-# schedule file
-Schedule.xlsx
+# database
+*.db
