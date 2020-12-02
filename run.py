@@ -7,6 +7,7 @@ import numpy as np
 from openpyxl import load_workbook
 import datetime
 import asyncio
+import sqlite3
 
 # Token
 token_path = os.path.dirname(os.path.abspath(__file__)) + "/token.txt"
@@ -25,49 +26,8 @@ sci = open(schedule_channel_id_path, "r", encoding="utf-8")
 schedule_channel_id = int(sci.read().split()[0])
 print("Schedule Channel ID : ", schedule_channel_id)
 
-# Load Menu
-load_wb_menu = load_workbook('./Menu.xlsx', data_only=True)
-load_ws_menu = load_wb_menu['Menu']
-menu = []
-menu_p = []
-menu_num = load_ws_menu['E2'].value
-for i in range(2, menu_num+2):
-    menu.append(load_ws_menu['A'+str(i)].value)
-    menu_p.append(load_ws_menu['B'+str(i)].value)
-
-# Load Restaurant
-load_wb_res = load_workbook('./Restaurant.xlsx', data_only=True)
-load_ws_res = load_wb_res['Restaurant']
-restaurant = []
-restaurant_p = []
-restaurant_num = load_ws_res['E2'].value
-for i in range(2, restaurant_num+2):
-    restaurant.append(load_ws_res['A'+str(i)].value)
-    restaurant_p.append(load_ws_res['B'+str(i)].value)
-
-# Load Schedule
-load_wb_sch = load_workbook('./Schedule.xlsx', data_only=True)
-load_ws_sch = load_wb_sch['Schedule']
-
-# Load R6 Operators - Attackers
-wb_r6_a = load_workbook('./r6_operator_attackers.xlsx', data_only=True)
-ws_r6_a = wb_r6_a['Attackers']
-r6_operator_attacker = []
-r6_operator_attacker_p = []
-r6_op_a_num = ws_r6_a['M3'].value
-for i in range(1, r6_op_a_num+1):
-    r6_operator_attacker.append(ws_r6_a['A'+str(i)].value)
-    r6_operator_attacker_p.append(ws_r6_a['J'+str(i)].value)
-
-# Load R6 Operators - Defenders
-wb_r6_d = load_workbook('./r6_operator_defenders.xlsx', data_only=True)
-ws_r6_d = wb_r6_d['Defenders']
-r6_operator_defender = []
-r6_operator_defender_p = []
-r6_op_d_num = ws_r6_d['M3'].value
-for i in range(1, r6_op_d_num+1):
-    r6_operator_defender.append(ws_r6_d['A'+str(i)].value)
-    r6_operator_defender_p.append(ws_r6_d['J'+str(i)].value)
+# Database
+db = sqlite3.connect("dobiemon.db")
 
 
 def extension_check(filename):
@@ -134,96 +94,128 @@ async def 커져라(ctx, arg):
 
 @bot.command()
 async def 오퍼(ctx, arg):
-    r6_operator = ''
-    if arg == '공격':
-        r6_operator_rand = np.random.choice(r6_operator_attacker, size=1, p=r6_operator_attacker_p)
-        r6_operator = r6_operator_rand[0]
-    elif arg == '수비':
-        r6_operator_rand = np.random.choice(r6_operator_defender, size=1, p=r6_operator_defender_p)
-        r6_operator = r6_operator_rand[0]
+    with db:
+        # 0 : Attacker
+        # 1 : Defender
+        r6_operator = ''
+        cur = db.cursor()
+        if arg == '공격':
+            cur.execute('SELECT * FROM R6_Operator WHERE Type = 0')
+            r6_op_a_rows = cur.fetchall()
+            r6_op_a = []
+            r6_op_a_p = []
+            for row in r6_op_a_rows:
+                r6_op_a.append(row[1])
+                r6_op_a_p.append(row[2])
+            r6_operator_rand = np.random.choice(r6_op_a, size=1, p=r6_op_a_p)
+            r6_operator = r6_operator_rand[0]
+        elif arg == '수비':
+            cur.execute('SELECT * FROM R6_Operator WHERE Type = 1')
+            r6_op_d_rows = cur.fetchall()
+            r6_op_d = []
+            r6_op_d_p = []
+            for row in r6_op_d_rows:
+                r6_op_d.append(row[1])
+                r6_op_d_p.append(row[2])
+            r6_operator_rand = np.random.choice(r6_op_d, size=1, p=r6_op_d_p)
+            r6_operator = r6_operator_rand[0]
 
-    if r6_operator == '':
-        embed = discord.Embed(title="올바른 형식이 아닙니다.",
-                              description="도움말을 참조해 다시 입력해 주세요.")
-        embed.set_footer(text="by 도비에몽")
-        await ctx.send(embed=embed)
-    else:
-        embed = discord.Embed(title="당신께 추천드리는, 이번 게임에 선택할 오퍼레이터는...",
-                              description=r6_operator + "입니다.")
-        embed.set_footer(text="by 도비에몽")
-        await ctx.send(embed=embed)
+        if r6_operator == '':
+            embed = discord.Embed(title="올바른 형식이 아닙니다.",
+                                  description="도움말을 참조해 다시 입력해 주세요.")
+            embed.set_footer(text="by 도비에몽")
+            await ctx.send(embed=embed)
+        else:
+            embed = discord.Embed(title="당신께 추천드리는, 이번 게임에 선택할 오퍼레이터는...",
+                                  description=r6_operator + "입니다.")
+            embed.set_footer(text="by 도비에몽")
+            await ctx.send(embed=embed)
 
 
 @bot.command()
 async def 메뉴(ctx):
-    menu_rand = np.random.choice(menu, size=1, p=menu_p)
-    menu_final = menu_rand[0]
+    with db:
+        cur = db.cursor()
+        cur.execute('SELECT * FROM Menu')
+        menu_rows = cur.fetchall()
+        menu = []
+        menu_p = []
+        for row in menu_rows:
+            menu.append(row[1])
+            menu_p.append(row[2])
+        menu_rand = np.random.choice(menu, size=1, p=menu_p)
+        menu_final = menu_rand[0]
 
-    embed = discord.Embed(title="당신께 추천드리는, 오늘의 메뉴는...",
-                          description=menu_final + "입니다.")
-    embed.set_footer(text="by 도비에몽")
-    await ctx.send(embed=embed)
+        embed = discord.Embed(title="당신께 추천드리는, 오늘의 메뉴는...",
+                              description=menu_final + "입니다.")
+        embed.set_footer(text="by 도비에몽")
+        await ctx.send(embed=embed)
 
 
 @bot.command()
 async def 식당(ctx):
-    res_rand = np.random.choice(restaurant, size=1, p=restaurant_p)
-    res_final = res_rand[0]
-    res_extra_message = ''
-    if res_final == '당신의 집':
-        res_extra_message = "메뉴는 파워에이드 라면만 허용해요."
-    elif res_final.find('(') != -1:
-        res_extra_message = "가서 식사만 하고 돌아오는 거에요."
+    with db:
+        # 0 : Basic
+        # 1 : Far
+        # 2 : Your House
+        cur = db.cursor()
+        cur.execute('SELECT * FROM Restaurant')
+        res_rows = cur.fetchall()
+        restaurant = []
+        restaurant_p = []
+        for row in res_rows:
+            restaurant.append((row[1], row[3]))
+            restaurant_p.append(row[2])
+        res_rand = np.random.choice(len(restaurant), size=1, p=restaurant_p)
+        res_final = restaurant[res_rand[0]][0]
+        res_extra_message = ''
+        if restaurant[res_rand[0]][1] == 2:
+            res_extra_message = "메뉴는 파워에이드 라면만 허용해요."
+        elif restaurant[res_rand[0]][1] == 1:
+            res_extra_message = "가서 식사만 하고 돌아오는 거에요."
 
-    if bool(res_extra_message):
-        res_extra_message = "\n" + res_extra_message
+        if bool(res_extra_message):
+            res_extra_message = "\n" + res_extra_message
 
-    embed = discord.Embed(title="당신께 추천드리는, 오늘의 식당은...",
-                          description=res_final + "입니다." + res_extra_message)
-    embed.set_footer(text="by 도비에몽")
-    await ctx.send(embed=embed)
-
-
-def check_schedule(num):
-    if num < 1:
-        return False
-    else:
-        return bool(load_ws_sch.cell(row=num, column=1).value)
+        embed = discord.Embed(title="당신께 추천드리는, 오늘의 식당은...",
+                              description=res_final + "입니다." + res_extra_message)
+        embed.set_footer(text="by 도비에몽")
+        await ctx.send(embed=embed)
 
 
-def add_schedule(dt, name):
-    idx_add_schedule = 2
-    while check_schedule(idx_add_schedule):
-        idx_add_schedule = idx_add_schedule + 1
-
-    write_ws = load_wb_sch.active
-    write_ws['A' + str(idx_add_schedule)] = dt.strftime('%Y-%m-%d %H:%M')
-    write_ws['B' + str(idx_add_schedule)] = name
-
-    load_wb_sch.save('./Schedule.xlsx')
+def add_schedule(dt, name_str):
+    with db:
+        cur = db.cursor()
+        add_sch_dt = dt.strftime('%Y-%m-%d %H:%M')
+        add_sch_db_str = 'INSERT INTO Schedule (Schedule_Name, Datetime) VALUES (?, ?)'
+        cur.execute(add_sch_db_str, (name_str, add_sch_dt))
+        db.commit()
 
 
 def del_schedule_by_idx(schedule_index):
-    del_ws = load_wb_sch.active
-    del_ws['A' + str(schedule_index)] = None
-    del_ws['B' + str(schedule_index)] = None
-    load_wb_sch.save('./Schedule.xlsx')
+    with db:
+        cur = db.cursor()
+        del_sch_db_str = 'DELETE FROM Schedule WHERE id = ?'
+        cur.execute(del_sch_db_str, (schedule_index,))
+        db.commit()
 
 
 async def scheduler():
     await bot.wait_until_ready()
     while True:
-        idx_scheduler = 2
-        while check_schedule(idx_scheduler):
-            datetime_tmp = datetime.datetime.strptime(load_ws_sch['A' + str(idx_scheduler)].value, '%Y-%m-%d %H:%M')
-            if datetime_tmp <= datetime.datetime.today():
-                embed = discord.Embed(title=load_ws_sch['B' + str(idx_scheduler)].value,
-                                      description="일정 알림입니다.\n" + datetime_tmp.strftime('%Y-%m-%d %H:%M'))
-                embed.set_footer(text="by 도비에몽")
-                del_schedule_by_idx(idx_scheduler)
-                message_channel = bot.get_channel(schedule_channel_id)
-                await message_channel.send(embed=embed)
-            idx_scheduler = idx_scheduler + 1
+        with db:
+            cur = db.cursor()
+            cur.execute('SELECT * FROM Schedule')
+            sch_rows = cur.fetchall()
+            for row in sch_rows:
+                datetime_tmp = datetime.datetime.strptime(row[2], '%Y-%m-%d %H:%M')
+                if datetime_tmp <= datetime.datetime.today():
+                    embed = discord.Embed(title=row[1],
+                                          description="일정 알림입니다.\n" + datetime_tmp.strftime('%Y-%m-%d %H:%M'))
+                    embed.set_footer(text="by 도비에몽")
+                    del_schedule_by_idx(row[0])
+                    message_channel = bot.get_channel(schedule_channel_id)
+                    await message_channel.send(embed=embed)
 
         await asyncio.sleep(5)
 
@@ -242,16 +234,18 @@ async def 일정(ctx, date_arg, time_arg, schedule_arg):
 
 @bot.command()
 async def 일정삭제(ctx, schedule_arg):
-    j = 2
-    while check_schedule(j):
-        if load_ws_sch['B' + str(j)].value == schedule_arg:
-            embed = discord.Embed(title="일정 삭제가 완료되었습니다.",
-                                  description="삭제한 일정 이름 : " + load_ws_sch['B' + str(j)].value + "\n"
-                                              + "삭제한 일정 일시 : " + load_ws_sch['A' + str(j)].value)
-            embed.set_footer(text="by 도비에몽")
-            del_schedule_by_idx(j)
-            await ctx.send(embed=embed)
-        j = j + 1
+    with db:
+        cur = db.cursor()
+        cur.execute('SELECT * FROM Schedule')
+        sch_rows = cur.fetchall()
+        for row in sch_rows:
+            if row[1] == schedule_arg:
+                embed = discord.Embed(title="일정 삭제가 완료되었습니다.",
+                                      description="삭제한 일정 이름 : " + row[1] + "\n"
+                                                  + "삭제한 일정 일시 : " + row[2])
+                embed.set_footer(text="by 도비에몽")
+                del_schedule_by_idx(row[0])
+                await ctx.send(embed=embed)
 
 
 @bot.command()
