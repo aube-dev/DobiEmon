@@ -8,7 +8,7 @@ import emon_magics as dem
 
 with open('information.json') as json_file:
     json_data = json.load(json_file)
-    schedule_channel_id = int(json_data['schedule_channel_id'])
+    SCHEDULE_CHANNEL_ID = int(json_data['schedule_channel_id'])
 
 # --------------------------------------------------
 
@@ -37,7 +37,7 @@ async def scheduler(db, bot):
         for row in sch_rows:
             datetime_tmp = datetime.datetime.strptime(row[2], '%Y-%m-%d %H:%M')
             if datetime_tmp <= datetime.datetime.today():
-                schedule_channel = bot.get_channel(schedule_channel_id)
+                schedule_channel = bot.get_channel(SCHEDULE_CHANNEL_ID)
                 await dem.send_embed(schedule_channel, row[1],
                                      "일정 알림입니다.\n" + datetime_tmp.strftime('%Y-%m-%d %H:%M'))
                 del_schedule_by_idx(db, row[0])

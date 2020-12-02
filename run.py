@@ -1,5 +1,6 @@
 import discord
 from discord.ext import commands
+from discord.ext.commands import CommandNotFound
 
 import glob
 from pathlib import Path
@@ -17,8 +18,7 @@ import emon_schedule as sch
 # Information
 with open('information.json') as json_file:
     json_data = json.load(json_file)
-    token = str(json_data['token'])
-    schedule_channel_id = int(json_data['schedule_channel_id'])
+    TOKEN = str(json_data['token'])
 
 # Settings
 game = discord.Game("-도움말")
@@ -65,8 +65,18 @@ async def 도움말(ctx):
 # --------------------------------------------------
 
 
-def extension_check(filename):
-    file_list = glob.glob('./images/*')
+@bot.event
+async def on_command_error(ctx, error):
+    if isinstance(error, CommandNotFound):
+        return
+    raise error
+
+
+# --------------------------------------------------
+
+
+def get_extension(file_list, filename):
+    # There must be not file with the same name
     correct_list = [file for file in file_list if file.find(filename) != -1]
     try:
         ext = Path(correct_list[0]).suffix
@@ -77,7 +87,8 @@ def extension_check(filename):
 
 @bot.command()
 async def 커져라(ctx, arg):
-    extension = extension_check(arg)
+    image_list = glob.glob('./images/*')
+    extension = get_extension(image_list, arg)
     if extension == 'error: not found':
         await dem.send_embed(ctx, "오류가 발생했습니다.", "해당 이름의 이미지를 찾을 수 없습니다.")
     else:
@@ -172,4 +183,4 @@ async def 처벌(ctx):
 # --------------------------------------------------
 
 bot.loop.create_task(sch.scheduler(db, bot))
-bot.run(token)
+bot.run(TOKEN)
