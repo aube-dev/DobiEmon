@@ -134,11 +134,11 @@ async def 식당(ctx):
         restaurant.append((row[1], row[3]))
         restaurant_p.append(row[2])
     res_rand = dem.random(len(restaurant), restaurant_p)
-    res_final = restaurant[res_rand[0]][0]
+    res_final = restaurant[res_rand][0]
     res_extra_message = ''
-    if restaurant[res_rand[0]][1] == 2:
+    if restaurant[res_rand][1] == 2:
         res_extra_message = "메뉴는 파워에이드 라면만 허용해요."
-    elif restaurant[res_rand[0]][1] == 1:
+    elif restaurant[res_rand][1] == 1:
         res_extra_message = "가서 식사만 하고 돌아오는 거에요."
 
     if bool(res_extra_message):
