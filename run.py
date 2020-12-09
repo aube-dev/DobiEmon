@@ -12,6 +12,7 @@ import datetime
 
 import emon_magics as dem
 import emon_schedule as sch
+import emon_music as music
 
 # --------------------------------------------------
 
@@ -75,24 +76,31 @@ async def on_command_error(ctx, error):
 # --------------------------------------------------
 
 
-def get_extension(file_list, filename):
-    # There must be not file with the same name
-    correct_list = [file for file in file_list if file.find(filename) != -1]
+def get_file(file_list, file_keyword):
+    correct_list = [file for file in file_list if file[0].find(file_keyword) != -1]
     try:
-        ext = Path(correct_list[0]).suffix
+        file = correct_list[0]
+        file_path = Path(file[0] + file[1])
     except:
         return 'error: not found'
-    return ext
+    return file_path
 
 
 @bot.command()
-async def 커져라(ctx, arg):
+async def 커져라(ctx, image_keyword):
     image_list = glob.glob('./images/*')
-    extension = get_extension(image_list, arg)
-    if extension == 'error: not found':
-        await dem.send_embed(ctx, "오류가 발생했습니다.", "해당 이름의 이미지를 찾을 수 없습니다.")
+    image_info_list = []
+    for image in image_list:
+        image_parts = Path(image).parts
+        image_extension = Path(image_parts[1]).suffix
+        image_name = image_parts[1].replace(image_extension, '')
+        image_info_list.append((image_name, image_extension))
+    image_path = get_file(image_info_list, image_keyword)
+
+    if image_path == 'error: not found':
+        await dem.send_embed(ctx, "오류가 발생했습니다.", "관련 이미지를 찾을 수 없습니다.")
     else:
-        image_path = "images/" + arg + extension
+        image_path = 'images' / image_path
         image = discord.File(image_path)
         try:
             await ctx.send(file=image)
@@ -179,6 +187,44 @@ async def 처벌(ctx):
     ban_list_p = [0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.05, 0.05]
     ban_result = dem.random(ban_list, ban_list_p)
     await dem.send_embed(ctx, "이번 사건은...", ban_result + ".")
+
+
+@bot.command()
+async def 음악(ctx, music_keyword):
+    guild = ctx.guild
+    voice_client: discord.VoiceClient = guild.voice_client
+
+    music_list = glob.glob('./musics/*')
+    music_info_list = []
+    for music_file in music_list:
+        music_parts = Path(music_file).parts
+        music_extension = Path(music_parts[1]).suffix
+        music_name = music_parts[1].replace(music_extension, '')
+        music_info_list.append((music_name, music_extension))
+    music_path = get_file(music_info_list, music_keyword)
+
+    if music_path == 'error: not found':
+        await dem.send_embed(ctx, "오류가 발생했습니다.", "관련 음악을 찾을 수 없습니다.")
+    else:
+        music_path = 'musics' / music_path
+        if not voice_client:
+            channel = ctx.author.voice.channel
+            await channel.connect()
+        music.add_queue(music.Track(music_path))
+        await dem.send_embed(ctx, '음악이 대기 목록에 추가되었습니다.', '대기열 순서에 따라 재생됩니다.')
+        await music.play_music(ctx, bot)
+
+
+@bot.command()
+async def 퇴장(ctx):
+    guild = ctx.guild
+    voice_client: discord.VoiceClient = guild.voice_client
+    if not voice_client:
+        await dem.send_embed(ctx, '오류가 발생했습니다.', '저는 이미 어느 채널에도 들어가 있지 않습니다.')
+        return
+    music.clean_queue()
+    await voice_client.disconnect()
+
 
 # --------------------------------------------------
 
