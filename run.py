@@ -59,6 +59,9 @@ async def 도움말(ctx):
     embed.add_field(name="둘 중 하나를 랜덤으로 뽑고 싶다면...",
                     value="-소라고둥 을 입력하고 한 칸 띄어쓰기 한 뒤, 뽑고 싶은 것 중 하나를 입력하고, "
                           + "한 칸 띄어쓰기 한 뒤, 나머지 하나를 입력하세요.\n" + "EX) -소라고둥 짜장면 짬뽕", inline=False)
+    embed.add_field(name="음악을 재생하고 싶다면...",
+                    value="-음악 을 입력하고 한 칸 띄어쓰기 한 뒤, 음악 이름을 입력하세요.\n"
+                          + "EX) -음악 Dolphin", inline=False)
     embed.set_footer(text="by 도비에몽")
     await ctx.send(embed=embed)
 
@@ -77,7 +80,8 @@ async def on_command_error(ctx, error):
 
 
 def get_file(file_list, file_keyword):
-    correct_list = [file for file in file_list if file[0].find(file_keyword) != -1]
+    file_keyword = file_keyword.lower()
+    correct_list = [file for file in file_list if file[0].lower().find(file_keyword) != -1]
     try:
         file = correct_list[0]
         file_path = Path(file[0] + file[1])
