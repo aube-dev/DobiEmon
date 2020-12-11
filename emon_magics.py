@@ -43,12 +43,10 @@ def run_coroutine(coroutine: asyncio.coroutine, bot):
 async def check_reaction_users(message, reaction_emoji=None):
     users_list = []
     if not reaction_emoji:
-        print('case 1')
         for reaction in message.reactions:
             async for user in reaction.users():
                 users_list.append(user.id)
     else:
-        print('case 2')
         for reaction in message.reactions:
             if str(reaction.emoji) == reaction_emoji:
                 async for user in reaction.users():

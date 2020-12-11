@@ -240,14 +240,16 @@ async def 추방투표(ctx, vote_user_mention):
 
     agree_emoji = '\U0001F44D'
     disagree_emoji = '\U0001F44E'
+    waiting_time = 30
     vote_message = await dem.send_embed(ctx, '추방 투표가 시작됩니다.',
                                         '<@' + str(ctx.message.author.id) + '> 님이\n'
                                         + vote_user_mention + ' 님에 대한 추방 투표를 열었습니다.'
-                                        + '\n\n찬성하시면, 10초 내에 이 메시지에 반응 ' + agree_emoji + ' 을 달아 주세요.'
+                                        + '\n\n찬성하시면, ' + str(waiting_time) +
+                                        '초 내에 이 메시지에 반응 ' + agree_emoji + ' 을 달아 주세요.'
                                         + '\n반대하시면, ' + disagree_emoji + ' 을 달아 주세요.')
     await vote_message.add_reaction(agree_emoji)
     await vote_message.add_reaction(disagree_emoji)
-    await asyncio.sleep(10)
+    await asyncio.sleep(waiting_time)
 
     vote_message_fetch = await ctx.fetch_message(vote_message.id)
     agree_users_list = await dem.check_reaction_users(vote_message_fetch, agree_emoji)
