@@ -63,6 +63,9 @@ async def 도움말(ctx):
     embed.add_field(name="음악을 재생하고 싶다면...",
                     value="-음악 을 입력하고 한 칸 띄어쓰기 한 뒤, 음악 이름을 입력하세요.\n"
                           + "EX) -음악 Dolphin", inline=False)
+    embed.add_field(name="추방 투표를 진행하고 싶다면...",
+                    value="-추방투표 를 입력하고 한 칸 띄어쓰기 한 뒤, 추방하고자 하는 사람을 '@'로 멘션하세요.\n"
+                          , inline=False)
     embed.set_footer(text="by 도비에몽")
     await ctx.send(embed=embed)
 
