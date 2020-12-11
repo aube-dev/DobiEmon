@@ -9,6 +9,7 @@ import sqlite3
 import json
 
 import datetime
+import asyncio
 
 import emon_magics as dem
 import emon_schedule as sch
@@ -23,8 +24,8 @@ with open('information.json') as json_file:
 
 # Settings
 game = discord.Game("-도움말")
-bot = commands.Bot(command_prefix='-', status=discord.Status.online, activity=game)
 client = discord.Client()
+bot = commands.Bot(command_prefix='-', status=discord.Status.online, activity=game)
 
 # Database
 db = sqlite3.connect("dobiemon.db")
@@ -160,9 +161,9 @@ async def 식당(ctx):
 
 
 @bot.command()
-async def 일정(ctx, date_arg, time_arg, schedule_arg):
+async def 일정(ctx, date_arg, time_arg, schedule_arg, repeat=0):
     schedule_datetime_tmp = datetime.datetime.strptime(date_arg + '-' + time_arg, '%Y%m%d-%H%M')
-    sch.add_schedule(db, schedule_datetime_tmp, schedule_arg)
+    await sch.add_schedule(db, schedule_datetime_tmp, schedule_arg, repeat, reaction_message=None, bot=bot)
     await dem.send_embed(ctx, "일정 알림이 추가되었습니다.",
                          "일정 이름 : " + schedule_arg + "\n"
                          + "일정 일시 : " + schedule_datetime_tmp.strftime('%Y-%m-%d %H:%M'))
@@ -228,6 +229,58 @@ async def 퇴장(ctx):
         return
     music.clean_queue()
     await voice_client.disconnect()
+
+
+@bot.command()
+async def 추방투표(ctx, vote_user_mention):
+    vote_member = ctx.message.mentions[0]
+
+    agree_emoji = '\U0001F44D'
+    disagree_emoji = '\U0001F44E'
+    vote_message = await dem.send_embed(ctx, '추방 투표가 시작됩니다.',
+                                        '<@' + str(ctx.message.author.id) + '> 님이\n'
+                                        + vote_user_mention + ' 님에 대한 추방 투표를 열었습니다.'
+                                        + '\n\n찬성하시면, 10초 내에 이 메시지에 반응 ' + agree_emoji + ' 을 달아 주세요.'
+                                        + '\n반대하시면, ' + disagree_emoji + ' 을 달아 주세요.')
+    await vote_message.add_reaction(agree_emoji)
+    await vote_message.add_reaction(disagree_emoji)
+    await asyncio.sleep(10)
+
+    vote_message_fetch = await ctx.fetch_message(vote_message.id)
+    agree_users_list = await dem.check_reaction_users(vote_message_fetch, agree_emoji)
+    disagree_users_list = await dem.check_reaction_users(vote_message_fetch, disagree_emoji)
+
+    # deduplication between agree users and disagree users
+    real_agree_users = []
+    for agree in agree_users_list:
+        is_duplicated = False
+        agree_user = await bot.fetch_user(agree)
+        for disagree in disagree_users_list:
+            if agree == disagree:
+                is_duplicated = True
+        if not is_duplicated and not agree_user.bot:
+            real_agree_users.append(agree)
+
+    real_disagree_users = []
+    for disagree in disagree_users_list:
+        disagree_user = await bot.fetch_user(disagree)
+        if not disagree_user.bot:
+            real_disagree_users.append(disagree)
+
+    agrees = len(real_agree_users)
+    disagrees = len(real_disagree_users)
+    if agrees > disagrees:
+        await dem.send_embed(ctx, '추방하는 것으로 결정되었습니다.',
+                             vote_user_mention + ' 님의 추방이 찬성 ' + str(agrees) + '표,'
+                             + "\n반대 " + str(disagrees) + "표로 가결되었습니다.")
+        try:
+            await vote_member.move_to(ctx.guild.afk_channel)
+        except:
+            await dem.send_embed(ctx, '오류가 발생했습니다.', '보내려는 유저를 잠수 채널로 보낼 수 없습니다.')
+    else:
+        await dem.send_embed(ctx, '추방하지 않는 것으로 결정되었습니다.',
+                             vote_user_mention + ' 님의 추방이 찬성 ' + str(agrees) + '표,'
+                             + "\n반대 " + str(disagrees) + "표로 부결되었습니다.")
 
 
 # --------------------------------------------------

@@ -1,5 +1,4 @@
 import discord
-import asyncio
 
 import emon_magics as dem
 
@@ -34,11 +33,6 @@ def add_queue(track):
     music_queue.append(track)
 
 
-def run_coroutine(coroutine: asyncio.coroutine, bot):
-    fut = asyncio.run_coroutine_threadsafe(coroutine, bot.loop)
-    return fut.result()
-
-
 def clean_queue():
     global music_queue
     for track in music_queue:
@@ -63,9 +57,9 @@ async def play_music(ctx, bot):
                 next_track_audio_source = create_audio_source(next_track.path)
                 vc.play(next_track_audio_source, after=after_play)
                 next_track.play()
-                run_coroutine(dem.send_embed(ctx, '음악 재생이 시작됩니다.', '음악 제목 : ' + next_track.get_title()), bot)
+                dem.run_coroutine(dem.send_embed(ctx, '음악 재생이 시작됩니다.', '음악 제목 : ' + next_track.get_title()), bot)
             elif vc and not music_queue:
-                run_coroutine(vc.disconnect(), bot)
+                dem.run_coroutine(vc.disconnect(), bot)
 
     if vc.is_playing():
         return
