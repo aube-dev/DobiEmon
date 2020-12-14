@@ -95,7 +95,7 @@ def get_file(file_list, file_keyword):
 
 
 @bot.command()
-async def 커져라(ctx, image_keyword):
+async def 커져라(ctx, *, image_keyword):
     image_list = glob.glob('./images/*')
     image_info_list = []
     for image in image_list:
@@ -198,7 +198,7 @@ async def 처벌(ctx):
 
 
 @bot.command()
-async def 음악(ctx, music_keyword):
+async def 음악(ctx, *, music_keyword):
     guild = ctx.guild
     voice_client: discord.VoiceClient = guild.voice_client
 
