@@ -4,6 +4,8 @@ from discord.ext.commands import CommandNotFound
 
 import glob
 from pathlib import Path
+import os
+import sys
 
 import sqlite3
 import json
@@ -22,11 +24,12 @@ import emon_music as music
 with open('information.json') as json_file:
     json_data = json.load(json_file)
     TOKEN = str(json_data['token'])
+    OWNERS_ID = list(json_data['owners_id'])
 
 # Settings
 game = discord.Game("-도움말")
 client = discord.Client()
-bot = commands.Bot(command_prefix='-', status=discord.Status.online, activity=game)
+bot = commands.Bot(command_prefix='test-', status=discord.Status.online, activity=game)
 
 # Database
 db = sqlite3.connect("dobiemon.db")
@@ -83,6 +86,82 @@ async def on_command_error(ctx, error):
     if isinstance(error, CommandNotFound):
         return
     raise error
+
+
+@bot.command()
+async def 재시작(ctx):
+    if str(ctx.message.author.id) not in OWNERS_ID:
+        await dem.send_embed(ctx, "오류가 발생했습니다.",
+                             "개발진만 실행할 수 있는 명령어입니다.")
+        return
+    await dem.send_embed(ctx, "봇을 재시작합니다.",
+                         "<@" + str(ctx.message.author.id) + "> 님에 의해 봇이 재시작됩니다.")
+    os.execl(sys.executable, sys.executable, *sys.argv)
+
+
+@bot.command()
+async def 종료(ctx):
+    if str(ctx.message.author.id) not in OWNERS_ID:
+        await dem.send_embed(ctx, "오류가 발생했습니다.",
+                             "개발진만 실행할 수 있는 명령어입니다.")
+        return
+    await dem.send_embed(ctx, "봇을 종료합니다.",
+                         "<@" + str(ctx.message.author.id) + "> 님에 의해 봇이 종료됩니다.")
+    await bot.logout()
+
+
+@bot.command()
+async def 명령어(ctx, arg, command_str=None, name_str=None):
+    if arg == '목록':
+        embed = discord.Embed()
+        for key in command_aliases:
+            value_str = ''
+            for val in command_aliases[key]:
+                value_str += ", " + val
+            embed.add_field(name="-" + key,
+                            value="별명 : " + value_str[2:], inline=False)
+        embed.set_footer(text="by 도비에몽")
+        await ctx.send(embed=embed)
+        return
+
+    # --- Admin ---
+
+    if str(ctx.message.author.id) not in OWNERS_ID:
+        await dem.send_embed(ctx, "오류가 발생했습니다.",
+                             "개발진만 실행할 수 있는 명령어입니다.")
+        return
+
+    try:
+        command = command_aliases[command_str]
+    except:
+        await dem.send_embed(ctx, '오류가 발생했습니다.', '해당 명령어를 찾을 수 없습니다.')
+        return
+
+    with open('aliases.pickle', 'wb') as f:
+        if arg == '추가':
+            for key in command_aliases:
+                if key == name_str:
+                    await dem.send_embed(ctx, "추가하지 못했습니다.",
+                                         "해당 별명은 이미 존재하는 명령어입니다.")
+                    return
+            for val in command_aliases.values():
+                for alias in val:
+                    if alias == name_str:
+                        await dem.send_embed(ctx, "추가하지 못했습니다.",
+                                             "해당 별명은 이미 존재하는 별명입니다.")
+                        return
+            command.append(name_str)
+        elif arg == '삭제':
+            try:
+                idx_for_del = command.index(name_str)
+            except ValueError:
+                await dem.send_embed(ctx, '오류가 발생했습니다.', '해당 별명을 찾을 수 없습니다.')
+                return
+            del command[idx_for_del]
+        pickle.dump(command_aliases, f)
+
+    await dem.send_embed(ctx, '성공적으로 ' + arg + '되었습니다.',
+                         arg + "된 내용 : \'" + command_str + "\' 명령어의 별명 \'" + name_str + "\'")
 
 
 # --------------------------------------------------
@@ -291,30 +370,6 @@ async def 추방투표(ctx, vote_user_mention):
         await dem.send_embed(ctx, '추방하지 않는 것으로 결정되었습니다.',
                              vote_user_mention + ' 님의 추방이 찬성 ' + str(agrees) + '표,'
                              + "\n반대 " + str(disagrees) + "표로 부결되었습니다.")
-
-
-@bot.command()
-async def 명령어(ctx, arg, command_str, name_str):
-    try:
-        command = command_aliases[command_str]
-    except:
-        await dem.send_embed(ctx, '오류가 발생했습니다.', '해당 명령어를 찾을 수 없습니다.')
-        return
-
-    with open('aliases.pickle', 'wb') as f:
-        if arg == '추가':
-            command.append(name_str)
-        elif arg == '삭제':
-            idx_for_del = command.find(name_str)
-            if idx_for_del == -1:
-                await dem.send_embed(ctx, '오류가 발생했습니다.', '해당 별명을 찾을 수 없습니다.')
-                return
-            else:
-                del command[idx_for_del]
-        pickle.dump(command_aliases, f)
-
-    await dem.send_embed(ctx, '성공적으로 ' + arg + '되었습니다.',
-                         arg + "된 내용 : \'" + command_str + "\' 명령어의 별명 \'" + name_str + "\'")
 
 
 # --------------------------------------------------
