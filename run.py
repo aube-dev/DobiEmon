@@ -7,6 +7,7 @@ from pathlib import Path
 
 import sqlite3
 import json
+import pickle
 
 import datetime
 import asyncio
@@ -30,6 +31,10 @@ bot = commands.Bot(command_prefix='-', status=discord.Status.online, activity=ga
 # Database
 db = sqlite3.connect("dobiemon.db")
 
+# Command Aliases - Pickle
+with open('aliases.pickle', 'rb') as f:
+    command_aliases = pickle.load(f)
+
 # --------------------------------------------------
 
 
@@ -38,7 +43,7 @@ async def on_ready():
     print("봇 시작")
 
 
-@bot.command()
+@bot.command(aliases=command_aliases['도움말'])
 async def 도움말(ctx):
     embed = discord.Embed()
     embed.add_field(name="이모티콘 이미지를 보내려면...",
@@ -94,8 +99,8 @@ def get_file(file_list, file_keyword):
     return file_path
 
 
-@bot.command()
-async def 커져라(ctx, image_keyword):
+@bot.command(aliases=command_aliases['커져라'])
+async def 커져라(ctx, *, image_keyword):
     image_list = glob.glob('./images/*')
     image_info_list = []
     for image in image_list:
@@ -116,7 +121,7 @@ async def 커져라(ctx, image_keyword):
             await dem.send_embed(ctx, "오류가 발생했습니다.", "사진 용량이 너무 큽니다.")
 
 
-@bot.command()
+@bot.command(aliases=command_aliases['오퍼'])
 async def 오퍼(ctx, arg):
     # 0 : Attacker / 1 : Defender
     r6_operator = ''
@@ -133,14 +138,14 @@ async def 오퍼(ctx, arg):
         await dem.send_embed(ctx, "당신께 추천드리는, 이번 게임에 선택할 오퍼레이터는...", r6_operator + "입니다.")
 
 
-@bot.command()
+@bot.command(aliases=command_aliases['메뉴'])
 async def 메뉴(ctx):
     menu, menu_p = dem.db_to_list(db, 'Menu', True)
     menu_final = dem.random(menu, menu_p)
     await dem.send_embed(ctx, "당신께 추천드리는, 오늘의 메뉴는...", menu_final + "입니다.")
 
 
-@bot.command()
+@bot.command(aliases=command_aliases['식당'])
 async def 식당(ctx):
     # 0 : Basic / 1 : Far / 2 : Your House
     res_rows = dem.db_to_list(db, 'Restaurant', False)
@@ -163,7 +168,7 @@ async def 식당(ctx):
     await dem.send_embed(ctx, "당신께 추천드리는, 오늘의 식당은...", res_final + "입니다." + res_extra_message)
 
 
-@bot.command()
+@bot.command(aliases=command_aliases['일정'])
 async def 일정(ctx, date_arg, time_arg, schedule_arg, repeat=0):
     schedule_datetime_tmp = datetime.datetime.strptime(date_arg + '-' + time_arg, '%Y%m%d-%H%M')
     await sch.add_schedule(db, schedule_datetime_tmp, schedule_arg, repeat, reaction_message=None, bot=bot)
@@ -172,7 +177,7 @@ async def 일정(ctx, date_arg, time_arg, schedule_arg, repeat=0):
                          + "일정 일시 : " + schedule_datetime_tmp.strftime('%Y-%m-%d %H:%M'))
 
 
-@bot.command()
+@bot.command(aliases=command_aliases['일정삭제'])
 async def 일정삭제(ctx, schedule_arg):
     sch_rows = dem.db_to_list(db, 'Schedule', False)
     for row in sch_rows:
@@ -183,13 +188,13 @@ async def 일정삭제(ctx, schedule_arg):
             sch.del_schedule_by_idx(db, row[0])
 
 
-@bot.command()
+@bot.command(aliases=command_aliases['소라고둥'])
 async def 소라고둥(ctx, arg1, arg2):
     srgd = dem.random([arg1, arg2], [0.5, 0.5])
     await dem.send_embed(ctx, "둘 중에서...", srgd + " 선택해.", "by 마법의 소라고둥 in 도비에몽")
 
 
-@bot.command()
+@bot.command(aliases=command_aliases['처벌'])
 async def 처벌(ctx):
     ban_list = ['2초', '5초', '10초', '1분', '2분', '5분', '10분', '15분', '30분', '1시간', '용서']
     ban_list_p = [0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.05, 0.05]
@@ -197,8 +202,8 @@ async def 처벌(ctx):
     await dem.send_embed(ctx, "이번 사건은...", ban_result + ".")
 
 
-@bot.command()
-async def 음악(ctx, music_keyword):
+@bot.command(aliases=command_aliases['음악'])
+async def 음악(ctx, *, music_keyword):
     guild = ctx.guild
     voice_client: discord.VoiceClient = guild.voice_client
 
@@ -223,7 +228,7 @@ async def 음악(ctx, music_keyword):
         await music.play_music(ctx, bot)
 
 
-@bot.command()
+@bot.command(aliases=command_aliases['퇴장'])
 async def 퇴장(ctx):
     guild = ctx.guild
     voice_client: discord.VoiceClient = guild.voice_client
@@ -234,7 +239,7 @@ async def 퇴장(ctx):
     await voice_client.disconnect()
 
 
-@bot.command()
+@bot.command(aliases=command_aliases['추방투표'])
 async def 추방투표(ctx, vote_user_mention):
     vote_member = ctx.message.mentions[0]
 
@@ -286,6 +291,30 @@ async def 추방투표(ctx, vote_user_mention):
         await dem.send_embed(ctx, '추방하지 않는 것으로 결정되었습니다.',
                              vote_user_mention + ' 님의 추방이 찬성 ' + str(agrees) + '표,'
                              + "\n반대 " + str(disagrees) + "표로 부결되었습니다.")
+
+
+@bot.command()
+async def 명령어(ctx, arg, command_str, name_str):
+    try:
+        command = command_aliases[command_str]
+    except:
+        await dem.send_embed(ctx, '오류가 발생했습니다.', '해당 명령어를 찾을 수 없습니다.')
+        return
+
+    with open('aliases.pickle', 'wb') as f:
+        if arg == '추가':
+            command.append(name_str)
+        elif arg == '삭제':
+            idx_for_del = command.find(name_str)
+            if idx_for_del == -1:
+                await dem.send_embed(ctx, '오류가 발생했습니다.', '해당 별명을 찾을 수 없습니다.')
+                return
+            else:
+                del command[idx_for_del]
+        pickle.dump(command_aliases, f)
+
+    await dem.send_embed(ctx, '성공적으로 ' + arg + '되었습니다.',
+                         arg + "된 내용 : \'" + command_str + "\' 명령어의 별명 \'" + name_str + "\'")
 
 
 # --------------------------------------------------
