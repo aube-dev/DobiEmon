@@ -29,7 +29,7 @@ with open('information.json') as json_file:
 # Settings
 game = discord.Game("-도움말")
 client = discord.Client()
-bot = commands.Bot(command_prefix='test-', status=discord.Status.online, activity=game)
+bot = commands.Bot(command_prefix='-', status=discord.Status.online, activity=game)
 
 # Database
 db = sqlite3.connect("dobiemon.db")
