@@ -21,7 +21,7 @@ import emon_music as music
 # --------------------------------------------------
 
 # Are you testing this bot?
-is_testing = True
+is_testing = False
 if is_testing:
     token_key = 'token_test'
     command_prefix = 't-'
