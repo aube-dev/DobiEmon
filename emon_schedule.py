@@ -1,7 +1,6 @@
 import asyncio
 import datetime
 import json
-import discord
 
 import emon_magics as dem
 
@@ -10,6 +9,7 @@ import emon_magics as dem
 with open('information.json') as json_file:
     json_data = json.load(json_file)
     SCHEDULE_CHANNEL_ID = int(json_data['schedule_channel_id'])
+    SCHEDULE_NOTI_CHANNEL_ID = int(json_data['schedule_noti_channel_id'])
 
 # --------------------------------------------------
 
@@ -39,12 +39,16 @@ async def add_schedule(db, dt, name_str, repeat, reaction_message, bot):
         db.commit()
 
 
-def del_schedule_by_idx(db, schedule_index):
+async def del_schedule_by_idx(db, schedule_index, message_id, bot):
     with db:
         cur = db.cursor()
         del_sch_db_str = 'DELETE FROM Schedule WHERE id = ?'
         cur.execute(del_sch_db_str, (schedule_index,))
         db.commit()
+
+    schedule_channel = bot.get_channel(SCHEDULE_CHANNEL_ID)
+    message = await schedule_channel.fetch_message(message_id)
+    await message.delete()
 
 
 def modify_schedule_by_idx(db, schedule_index, after_name, after_datetime, after_repeat):
@@ -77,6 +81,7 @@ async def scheduler(db, bot):
         for row in sch_rows:
             datetime_tmp = datetime.datetime.strptime(row[2], '%Y-%m-%d %H:%M')
             if datetime_tmp <= datetime.datetime.today():
+                # check reactions
                 schedule_channel = bot.get_channel(SCHEDULE_CHANNEL_ID)
                 message = await schedule_channel.fetch_message(row[3])
                 users_list = await dem.check_reaction_users(message)
@@ -85,18 +90,19 @@ async def scheduler(db, bot):
                 for user in users_list:
                     mention_users_str += '<@' + str(user) + '> '
 
-                await dem.send_embed(schedule_channel, row[1],
+                # send notification
+                schedule_noti_channel = bot.get_channel(SCHEDULE_NOTI_CHANNEL_ID)
+                await dem.send_embed(schedule_noti_channel, row[1],
                                      "일정 알림입니다.\n" + datetime_tmp.strftime('%Y-%m-%d %H:%M'))
+                if mention_users_str:
+                    await schedule_noti_channel.send(mention_users_str)
 
                 # check if it should be repeated
                 if row[4] == 0:
-                    del_schedule_by_idx(db, row[0])
+                    await del_schedule_by_idx(db, row[0], row[3], bot)
                 else:
                     next_datetime = datetime_tmp + datetime.timedelta(days=row[4])
                     await add_schedule(db, next_datetime, row[1], row[4], reaction_message=row[3], bot=bot)
-                    del_schedule_by_idx(db, row[0])
-
-                if mention_users_str:
-                    await schedule_channel.send(mention_users_str)
+                    await del_schedule_by_idx(db, row[0], row[3], bot)
 
         await asyncio.sleep(5)

@@ -34,6 +34,7 @@ with open('information.json') as json_file:
     json_data = json.load(json_file)
     TOKEN = str(json_data[token_key])
     SCHEDULE_CHANNEL_ID = int(json_data['schedule_channel_id'])
+    SCHEDULE_NOTI_CHANNEL_ID = int(json_data['schedule_noti_channel_id'])
     OWNERS_ID = list(json_data['owners_id'])
 
 # Settings
@@ -244,6 +245,7 @@ async def 일정(ctx, cmd_arg, schedule_arg='', date_arg='', time_arg='', repeat
         await dem.send_embed(ctx, "일정 알림이 추가되었습니다.",
                              "일정 이름 : " + schedule_arg + "\n"
                              + "일정 일시 : " + schedule_datetime_tmp.strftime('%Y-%m-%d %H:%M'))
+
     elif cmd_arg == '삭제':
         sch_rows = dem.db_to_list(db, 'Schedule', False)
         for row in sch_rows:
@@ -253,14 +255,8 @@ async def 일정(ctx, cmd_arg, schedule_arg='', date_arg='', time_arg='', repeat
                                      + "삭제한 일정 일시 : " + row[2] + "\n"
                                      + "삭제한 일정 반복 주기 : " + str(row[4]) + "\n\n"
                                      + "기존 일정 추가 알림 메시지는 삭제됩니다.")
-                await dem.send_embed(schedule_channel, "일정이 삭제되었습니다.",
-                                     "삭제된 일정 이름 : " + row[1] + "\n"
-                                     + "삭제된 일정 일시 : " + row[2] + "\n"
-                                     + "삭제된 일정 반복 주기 : " + str(row[4]) + "\n\n"
-                                     + "기존 일정 추가 알림 메시지는 삭제됩니다.")
-                message = await schedule_channel.fetch_message(row[3])
-                await message.delete()
-                sch.del_schedule_by_idx(db, row[0])
+                await sch.del_schedule_by_idx(db, row[0], row[3], bot)
+
     elif cmd_arg == '목록':
         sch_rows = dem.db_to_list(db, 'Schedule', False)
         if not sch_rows:
@@ -271,6 +267,7 @@ async def 일정(ctx, cmd_arg, schedule_arg='', date_arg='', time_arg='', repeat
         for row in sch_rows:
             embed.add_field(name=row[1], value='다음 알림 예정 일시: ' + row[2] + "\n반복 주기: " + str(row[4]))
         await ctx.send(embed=embed)
+
     elif cmd_arg == '수정':
         sch_rows = dem.db_to_list(db, 'Schedule', False)
         for row in sch_rows:
@@ -284,12 +281,14 @@ async def 일정(ctx, cmd_arg, schedule_arg='', date_arg='', time_arg='', repeat
                                      + " 그리고 일시는 YYYYMMDD-HHMM의 형식으로 적어 주세요."
                                      + "\n입력 예시 : 내생일 20210102-0100 그대로")
 
+                # wait for message
                 def check(m):
                     return m.author == ctx.author
 
                 modify_message = await bot.wait_for('message', check=check)
                 message_str = modify_message.content
 
+                # message to data
                 try:
                     after_name, after_dt, after_rp = message_str.split()
                 except ValueError:
@@ -299,13 +298,15 @@ async def 일정(ctx, cmd_arg, schedule_arg='', date_arg='', time_arg='', repeat
 
                 after_dt = datetime.datetime.strptime(after_dt, '%Y%m%d-%H%M')
                 after_dt = after_dt.strftime('%Y-%m-%d %H:%M')
-                modify_bool = sch.modify_schedule_by_idx(db, row[0], after_name, after_dt, after_rp)
 
+                # modify
+                modify_bool = sch.modify_schedule_by_idx(db, row[0], after_name, after_dt, after_rp)
                 await dem.send_embed(ctx, '성공적으로 수정되었습니다.',
                                      "일정 이름 : " + after_name + "\n"
                                      + "일정 일시 : " + after_dt + "\n"
                                      + "일정 반복 주기 : " + after_rp)
 
+                # modify message
                 message = await schedule_channel.fetch_message(row[3])
                 if not modify_bool['name']:
                     after_name = row[1]
@@ -320,6 +321,7 @@ async def 일정(ctx, cmd_arg, schedule_arg='', date_arg='', time_arg='', repeat
                                                       "\n\n이 일정의 알림을 받고 싶다면 이 메시지에 반응을 달아 주세요.")
                 await message.edit(embed=new_embed)
                 return
+
     else:
         await dem.send_embed(ctx, '오류가 발생했습니다.', '일정 관련 명령어 입력이 잘못되었습니다.')
 
