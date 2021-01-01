@@ -33,6 +33,7 @@ else:
 with open('information.json') as json_file:
     json_data = json.load(json_file)
     TOKEN = str(json_data[token_key])
+    SCHEDULE_CHANNEL_ID = int(json_data['schedule_channel_id'])
     OWNERS_ID = list(json_data['owners_id'])
 
 # Settings
@@ -235,23 +236,39 @@ async def 식당(ctx):
 
 
 @bot.command(aliases=command_aliases['일정'])
-async def 일정(ctx, date_arg, time_arg, schedule_arg, repeat=0):
-    schedule_datetime_tmp = datetime.datetime.strptime(date_arg + '-' + time_arg, '%Y%m%d-%H%M')
-    await sch.add_schedule(db, schedule_datetime_tmp, schedule_arg, repeat, reaction_message=None, bot=bot)
-    await dem.send_embed(ctx, "일정 알림이 추가되었습니다.",
-                         "일정 이름 : " + schedule_arg + "\n"
-                         + "일정 일시 : " + schedule_datetime_tmp.strftime('%Y-%m-%d %H:%M'))
-
-
-@bot.command(aliases=command_aliases['일정삭제'])
-async def 일정삭제(ctx, schedule_arg):
-    sch_rows = dem.db_to_list(db, 'Schedule', False)
-    for row in sch_rows:
-        if row[1] == schedule_arg:
-            await dem.send_embed(ctx, "일정 삭제가 완료되었습니다.",
-                                 "삭제한 일정 이름 : " + row[1] + "\n"
-                                 + "삭제한 일정 일시 : " + row[2])
-            sch.del_schedule_by_idx(db, row[0])
+async def 일정(ctx, cmd_arg, schedule_arg='', date_arg='', time_arg='', repeat=0):
+    if cmd_arg == '추가':
+        schedule_datetime_tmp = datetime.datetime.strptime(date_arg + '-' + time_arg, '%Y%m%d-%H%M')
+        await sch.add_schedule(db, schedule_datetime_tmp, schedule_arg, repeat, reaction_message=None, bot=bot)
+        await dem.send_embed(ctx, "일정 알림이 추가되었습니다.",
+                             "일정 이름 : " + schedule_arg + "\n"
+                             + "일정 일시 : " + schedule_datetime_tmp.strftime('%Y-%m-%d %H:%M'))
+    elif cmd_arg == '삭제':
+        sch_rows = dem.db_to_list(db, 'Schedule', False)
+        for row in sch_rows:
+            if row[1] == schedule_arg:
+                schedule_channel = bot.get_channel(SCHEDULE_CHANNEL_ID)
+                await dem.send_embed(ctx, "일정 삭제가 완료되었습니다.",
+                                     "삭제한 일정 이름 : " + row[1] + "\n"
+                                     + "삭제한 일정 일시 : " + row[2] + "\n"
+                                     + "삭제한 일정 반복 주기 : " + str(row[4]) + "\n\n"
+                                     + "기존 일정 추가 알림 메시지는 삭제됩니다.")
+                await dem.send_embed(schedule_channel, "일정이 삭제되었습니다.",
+                                     "삭제된 일정 이름 : " + row[1] + "\n"
+                                     + "삭제된 일정 일시 : " + row[2] + "\n"
+                                     + "삭제된 일정 반복 주기 : " + str(row[4]) + "\n\n"
+                                     + "기존 일정 추가 알림 메시지는 삭제됩니다.")
+                message = await schedule_channel.fetch_message(row[3])
+                await message.delete()
+                sch.del_schedule_by_idx(db, row[0])
+    elif cmd_arg == '목록':
+        sch_rows = dem.db_to_list(db, 'Schedule', False)
+        embed = discord.Embed()
+        for row in sch_rows:
+            embed.add_field(name=row[1], value='다음 알림 예정 일시: ' + row[2] + "\n반복 주기: " + str(row[4]))
+        await ctx.send(embed=embed)
+    else:
+        await dem.send_embed(ctx, '오류가 발생했습니다.', '일정 관련 명령어 입력이 잘못되었습니다.')
 
 
 @bot.command(aliases=command_aliases['소라고둥'])
