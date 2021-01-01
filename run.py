@@ -38,7 +38,8 @@ with open('information.json') as json_file:
 # Settings
 game = discord.Game("-도움말")
 client = discord.Client()
-bot = commands.Bot(command_prefix=command_prefix, status=discord.Status.online, activity=game)
+bot = commands.Bot(command_prefix=command_prefix, status=discord.Status.online, activity=game,
+                   help_command=None)
 
 # Database
 db = sqlite3.connect("dobiemon.db")
@@ -57,34 +58,11 @@ async def on_ready():
 
 @bot.command(aliases=command_aliases['도움말'])
 async def 도움말(ctx):
-    embed = discord.Embed()
-    embed.add_field(name="이모티콘 이미지를 보내려면...",
-                    value="-커져라 를 입력하고 한 칸 띄어쓰기 한 뒤, 원하는 이모티콘 이름을 쓰세요.\nEX) -커져라 blob_excited", inline=False)
-    embed.add_field(name="레식 오퍼레이터를 랜덤으로 뽑고 싶다면...",
-                    value="-오퍼 를 입력하고 한 칸 띄어쓰기 한 뒤, 공격/수비 중 하나를 입력하세요.\nEX) -오퍼 공격", inline=False)
-    embed.add_field(name="오늘의 메뉴를 뽑고 싶다면...",
-                    value="-메뉴 를 입력하세요.", inline=False)
-    embed.add_field(name="오늘의 식당을 뽑고 싶다면...",
-                    value="-식당 을 입력하세요.", inline=False)
-    embed.add_field(name="알림을 받고 싶은 일정을 추가하려면...",
-                    value="-일정 을 입력하고 한 칸 띄어쓰기 한 뒤, YYYYMMDD 형식으로 날짜를 입력하고, "
-                          + "한 칸 띄어쓰기 한 뒤, HHMM 형식으로 시각을 입력하고, 한 칸 띄어쓰기 한 뒤, 일정 이름을 입력하세요."
-                    + "\nEX) -일정 20201123 1300 검단모임 : 2020년 11월 23일, 13시 00분으로, 검단모임 이라는 이름의 일정 설정", inline=False)
-    embed.add_field(name="이미 등록되어 있는 일정을 삭제하려면...",
-                    value="-일정삭제 를 입력하고 한 칸 띄어쓰기 한 뒤, 삭제할 일정의 이름을 입력하세요."
-                    + "\nEX) -일정삭제 검단모임"
-                    + "\n주의) 같은 이름을 가진 다른 일정이 있다면 모두 삭제됩니다.", inline=False)
-    embed.add_field(name="둘 중 하나를 랜덤으로 뽑고 싶다면...",
-                    value="-소라고둥 을 입력하고 한 칸 띄어쓰기 한 뒤, 뽑고 싶은 것 중 하나를 입력하고, "
-                          + "한 칸 띄어쓰기 한 뒤, 나머지 하나를 입력하세요.\n" + "EX) -소라고둥 짜장면 짬뽕", inline=False)
-    embed.add_field(name="음악을 재생하고 싶다면...",
-                    value="-음악 을 입력하고 한 칸 띄어쓰기 한 뒤, 음악 이름을 입력하세요.\n"
-                          + "EX) -음악 Dolphin", inline=False)
-    embed.add_field(name="추방 투표를 진행하고 싶다면...",
-                    value="-추방투표 를 입력하고 한 칸 띄어쓰기 한 뒤, 추방하고자 하는 사람을 '@'로 멘션하세요.\n"
-                          , inline=False)
-    embed.set_footer(text="by 도비에몽")
-    await ctx.send(embed=embed)
+    await dem.send_embed(ctx, '도비에몽을 이용해 주시는 여러분!',
+                         '도비에몽은 편의를 위해 여러 기능을 종합적으로 넣어 개발한 봇입니다.'
+                         + ' 도비에몽의 다양한 기능에 대해 알고 싶다면, Notion에서 확인해 보세요.'
+                         + '\n\n[도비에몽 Notion 페이지 바로가기]'
+                         + '(https://www.notion.so/759bc6b62aba4a1f80a634581b646de8)')
 
 
 # --------------------------------------------------
