@@ -183,10 +183,13 @@ async def 커져라(ctx, *, image_keyword):
     else:
         image_path = 'images' / image_path
         image = discord.File(image_path)
-        try:
-            await ctx.send(file=image)
-        except:
-            await dem.send_embed(ctx, "오류가 발생했습니다.", "사진 용량이 너무 큽니다.")
+        embed = discord.Embed()
+        embed.set_author(name=ctx.author.name, icon_url=ctx.author.avatar_url)
+        await ctx.message.delete()
+        msg = await ctx.send(file=image)
+        embed.set_image(url=msg.attachments[0].url)
+        await ctx.send(embed=embed)
+        await msg.delete()
 
 
 @bot.command(aliases=command_aliases['오퍼'])
