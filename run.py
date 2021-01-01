@@ -20,16 +20,25 @@ import emon_music as music
 
 # --------------------------------------------------
 
+# Are you testing this bot?
+is_testing = True
+if is_testing:
+    token_key = 'token_test'
+    command_prefix = 't-'
+else:
+    token_key = 'token'
+    command_prefix = '-'
+
 # Information
 with open('information.json') as json_file:
     json_data = json.load(json_file)
-    TOKEN = str(json_data['token'])
+    TOKEN = str(json_data[token_key])
     OWNERS_ID = list(json_data['owners_id'])
 
 # Settings
 game = discord.Game("-도움말")
 client = discord.Client()
-bot = commands.Bot(command_prefix='test-', status=discord.Status.online, activity=game)
+bot = commands.Bot(command_prefix=command_prefix, status=discord.Status.online, activity=game)
 
 # Database
 db = sqlite3.connect("dobiemon.db")
