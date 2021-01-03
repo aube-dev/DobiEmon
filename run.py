@@ -240,9 +240,37 @@ async def 식당(ctx):
 
 
 @bot.command(aliases=command_aliases['일정'])
-async def 일정(ctx, cmd_arg, schedule_arg='', date_arg='', time_arg='', repeat=0):
+async def 일정(ctx, cmd_arg, schedule_arg=''):
     schedule_channel = bot.get_channel(SCHEDULE_CHANNEL_ID)
     if cmd_arg == '추가':
+        await dem.send_embed(ctx, "일정 추가를 시작합니다.",
+                             "추가하고 싶은 일정 이름, 일정 날짜(YYYYMMDD), 일정 시각(HHMM) 순으로 띄어쓰기로 구분해 적어주세요."
+                             + " 그리고 이 일정을 반복하고 싶다면, 마지막에 반복 주기를 일(day) 단위로 적어 주세요."
+                             + "\n작성 예시 : 일퀘 20210104 1900 1"
+                             + "\n일정을 반복하고 싶지 않다면 마지막을 적지 않고 시각까지만 작성하면 됩니다."
+                             + "\n예시 : 라라코스트모임 20210104 1800")
+
+        def check(m):
+            return m.author == ctx.author and m.channel == ctx.channel
+
+        try:
+            add_message = await bot.wait_for('message', check=check, timeout=60.0)
+            message_str = add_message.content
+        except asyncio.TimeoutError:
+            await dem.send_embed(ctx, "입력 시간이 초과되었습니다.", "60초 내에 입력하지 않아 취소되었습니다.")
+            return
+
+        try:
+            if len(message_str.split()) == 3:
+                schedule_arg, date_arg, time_arg = message_str.split()
+                repeat = 0
+            else:
+                schedule_arg, date_arg, time_arg, repeat = message_str.split()
+        except ValueError:
+            await dem.send_embed(ctx, "오류가 발생했습니다.",
+                                 "형식에 맞지 않게 입력되었습니다.")
+            return
+
         schedule_datetime_tmp = datetime.datetime.strptime(date_arg + '-' + time_arg, '%Y%m%d-%H%M')
         await sch.add_schedule(db, schedule_datetime_tmp, schedule_arg, repeat, reaction_message=None, bot=bot)
         await dem.send_embed(ctx, "일정 알림이 추가되었습니다.",
@@ -286,10 +314,14 @@ async def 일정(ctx, cmd_arg, schedule_arg='', date_arg='', time_arg='', repeat
 
                 # wait for message
                 def check(m):
-                    return m.author == ctx.author
+                    return m.author == ctx.author and m.channel == ctx.channel
 
-                modify_message = await bot.wait_for('message', check=check)
-                message_str = modify_message.content
+                try:
+                    modify_message = await bot.wait_for('message', check=check, timeout=60.0)
+                    message_str = modify_message.content
+                except asyncio.TimeoutError:
+                    await dem.send_embed(ctx, "입력 시간이 초과되었습니다.", "60초 내에 입력하지 않아 취소되었습니다.")
+                    return
 
                 # message to data
                 try:
