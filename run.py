@@ -20,16 +20,28 @@ import emon_music as music
 
 # --------------------------------------------------
 
+# Are you testing this bot?
+is_testing = False
+if is_testing:
+    token_key = 'token_test'
+    command_prefix = 't-'
+else:
+    token_key = 'token'
+    command_prefix = '-'
+
 # Information
 with open('information.json') as json_file:
     json_data = json.load(json_file)
-    TOKEN = str(json_data['token'])
+    TOKEN = str(json_data[token_key])
+    SCHEDULE_CHANNEL_ID = int(json_data['schedule_channel_id'])
+    SCHEDULE_NOTI_CHANNEL_ID = int(json_data['schedule_noti_channel_id'])
     OWNERS_ID = list(json_data['owners_id'])
 
 # Settings
 game = discord.Game("-도움말")
 client = discord.Client()
-bot = commands.Bot(command_prefix='-', status=discord.Status.online, activity=game)
+bot = commands.Bot(command_prefix=command_prefix, status=discord.Status.online, activity=game,
+                   help_command=None)
 
 # Database
 db = sqlite3.connect("dobiemon.db")
@@ -48,34 +60,11 @@ async def on_ready():
 
 @bot.command(aliases=command_aliases['도움말'])
 async def 도움말(ctx):
-    embed = discord.Embed()
-    embed.add_field(name="이모티콘 이미지를 보내려면...",
-                    value="-커져라 를 입력하고 한 칸 띄어쓰기 한 뒤, 원하는 이모티콘 이름을 쓰세요.\nEX) -커져라 blob_excited", inline=False)
-    embed.add_field(name="레식 오퍼레이터를 랜덤으로 뽑고 싶다면...",
-                    value="-오퍼 를 입력하고 한 칸 띄어쓰기 한 뒤, 공격/수비 중 하나를 입력하세요.\nEX) -오퍼 공격", inline=False)
-    embed.add_field(name="오늘의 메뉴를 뽑고 싶다면...",
-                    value="-메뉴 를 입력하세요.", inline=False)
-    embed.add_field(name="오늘의 식당을 뽑고 싶다면...",
-                    value="-식당 을 입력하세요.", inline=False)
-    embed.add_field(name="알림을 받고 싶은 일정을 추가하려면...",
-                    value="-일정 을 입력하고 한 칸 띄어쓰기 한 뒤, YYYYMMDD 형식으로 날짜를 입력하고, "
-                          + "한 칸 띄어쓰기 한 뒤, HHMM 형식으로 시각을 입력하고, 한 칸 띄어쓰기 한 뒤, 일정 이름을 입력하세요."
-                    + "\nEX) -일정 20201123 1300 검단모임 : 2020년 11월 23일, 13시 00분으로, 검단모임 이라는 이름의 일정 설정", inline=False)
-    embed.add_field(name="이미 등록되어 있는 일정을 삭제하려면...",
-                    value="-일정삭제 를 입력하고 한 칸 띄어쓰기 한 뒤, 삭제할 일정의 이름을 입력하세요."
-                    + "\nEX) -일정삭제 검단모임"
-                    + "\n주의) 같은 이름을 가진 다른 일정이 있다면 모두 삭제됩니다.", inline=False)
-    embed.add_field(name="둘 중 하나를 랜덤으로 뽑고 싶다면...",
-                    value="-소라고둥 을 입력하고 한 칸 띄어쓰기 한 뒤, 뽑고 싶은 것 중 하나를 입력하고, "
-                          + "한 칸 띄어쓰기 한 뒤, 나머지 하나를 입력하세요.\n" + "EX) -소라고둥 짜장면 짬뽕", inline=False)
-    embed.add_field(name="음악을 재생하고 싶다면...",
-                    value="-음악 을 입력하고 한 칸 띄어쓰기 한 뒤, 음악 이름을 입력하세요.\n"
-                          + "EX) -음악 Dolphin", inline=False)
-    embed.add_field(name="추방 투표를 진행하고 싶다면...",
-                    value="-추방투표 를 입력하고 한 칸 띄어쓰기 한 뒤, 추방하고자 하는 사람을 '@'로 멘션하세요.\n"
-                          , inline=False)
-    embed.set_footer(text="by 도비에몽")
-    await ctx.send(embed=embed)
+    await dem.send_embed(ctx, '도비에몽을 이용해 주시는 여러분!',
+                         '도비에몽은 편의를 위해 여러 기능을 종합적으로 넣어 개발한 봇입니다.'
+                         + ' 도비에몽의 다양한 기능에 대해 알고 싶다면, Notion에서 확인해 보세요.'
+                         + '\n\n[도비에몽 Notion 페이지 바로가기]'
+                         + '(https://www.notion.so/759bc6b62aba4a1f80a634581b646de8)')
 
 
 # --------------------------------------------------
@@ -194,10 +183,13 @@ async def 커져라(ctx, *, image_keyword):
     else:
         image_path = 'images' / image_path
         image = discord.File(image_path)
-        try:
-            await ctx.send(file=image)
-        except:
-            await dem.send_embed(ctx, "오류가 발생했습니다.", "사진 용량이 너무 큽니다.")
+        embed = discord.Embed()
+        embed.set_author(name=ctx.author.name, icon_url=ctx.author.avatar_url)
+        await ctx.message.delete()
+        msg = await ctx.send(file=image)
+        embed.set_image(url=msg.attachments[0].url)
+        await ctx.send(embed=embed)
+        await msg.delete()
 
 
 @bot.command(aliases=command_aliases['오퍼'])
@@ -248,23 +240,125 @@ async def 식당(ctx):
 
 
 @bot.command(aliases=command_aliases['일정'])
-async def 일정(ctx, date_arg, time_arg, schedule_arg, repeat=0):
-    schedule_datetime_tmp = datetime.datetime.strptime(date_arg + '-' + time_arg, '%Y%m%d-%H%M')
-    await sch.add_schedule(db, schedule_datetime_tmp, schedule_arg, repeat, reaction_message=None, bot=bot)
-    await dem.send_embed(ctx, "일정 알림이 추가되었습니다.",
-                         "일정 이름 : " + schedule_arg + "\n"
-                         + "일정 일시 : " + schedule_datetime_tmp.strftime('%Y-%m-%d %H:%M'))
+async def 일정(ctx, cmd_arg, schedule_arg=''):
+    schedule_channel = bot.get_channel(SCHEDULE_CHANNEL_ID)
+    if cmd_arg == '추가':
+        await dem.send_embed(ctx, "일정 추가를 시작합니다.",
+                             "추가하고 싶은 일정 이름, 일정 날짜(YYYYMMDD), 일정 시각(HHMM) 순으로 띄어쓰기로 구분해 적어주세요."
+                             + " 그리고 이 일정을 반복하고 싶다면, 마지막에 반복 주기를 일(day) 단위로 적어 주세요."
+                             + "\n작성 예시 : 일퀘 20210104 1900 1"
+                             + "\n일정을 반복하고 싶지 않다면 마지막을 적지 않고 시각까지만 작성하면 됩니다."
+                             + "\n예시 : 라라코스트모임 20210104 1800")
 
+        def check(m):
+            return m.author == ctx.author and m.channel == ctx.channel
 
-@bot.command(aliases=command_aliases['일정삭제'])
-async def 일정삭제(ctx, schedule_arg):
-    sch_rows = dem.db_to_list(db, 'Schedule', False)
-    for row in sch_rows:
-        if row[1] == schedule_arg:
-            await dem.send_embed(ctx, "일정 삭제가 완료되었습니다.",
-                                 "삭제한 일정 이름 : " + row[1] + "\n"
-                                 + "삭제한 일정 일시 : " + row[2])
-            sch.del_schedule_by_idx(db, row[0])
+        try:
+            add_message = await bot.wait_for('message', check=check, timeout=60.0)
+            message_str = add_message.content
+        except asyncio.TimeoutError:
+            await dem.send_embed(ctx, "입력 시간이 초과되었습니다.", "60초 내에 입력하지 않아 취소되었습니다.")
+            return
+
+        try:
+            if len(message_str.split()) == 3:
+                schedule_arg, date_arg, time_arg = message_str.split()
+                repeat = 0
+            else:
+                schedule_arg, date_arg, time_arg, repeat = message_str.split()
+        except ValueError:
+            await dem.send_embed(ctx, "오류가 발생했습니다.",
+                                 "형식에 맞지 않게 입력되었습니다.")
+            return
+
+        schedule_datetime_tmp = datetime.datetime.strptime(date_arg + '-' + time_arg, '%Y%m%d-%H%M')
+        await sch.add_schedule(db, schedule_datetime_tmp, schedule_arg, repeat, reaction_message=None, bot=bot)
+        await dem.send_embed(ctx, "일정 알림이 추가되었습니다.",
+                             "일정 이름 : " + schedule_arg + "\n"
+                             + "일정 일시 : " + schedule_datetime_tmp.strftime('%Y-%m-%d %H:%M'))
+
+    elif cmd_arg == '삭제':
+        sch_rows = dem.db_to_list(db, 'Schedule', False)
+        for row in sch_rows:
+            if row[1] == schedule_arg:
+                await dem.send_embed(ctx, "일정 삭제가 완료되었습니다.",
+                                     "삭제한 일정 이름 : " + row[1] + "\n"
+                                     + "삭제한 일정 일시 : " + row[2] + "\n"
+                                     + "삭제한 일정 반복 주기 : " + str(row[4]) + "\n\n"
+                                     + "기존 일정 추가 알림 메시지는 삭제됩니다.")
+                await sch.del_schedule_by_idx(db, row[0], row[3], bot)
+
+    elif cmd_arg == '목록':
+        sch_rows = dem.db_to_list(db, 'Schedule', False)
+        if not sch_rows:
+            await dem.send_embed(ctx, "현재 등록된 일정이 없습니다.",
+                                 "새로운 일정을 등록해 삶의 질을 높여 보세요.")
+            return
+        embed = discord.Embed()
+        for row in sch_rows:
+            embed.add_field(name=row[1], value='다음 알림 예정 일시: ' + row[2] + "\n반복 주기: " + str(row[4]))
+        await ctx.send(embed=embed)
+
+    elif cmd_arg == '수정':
+        sch_rows = dem.db_to_list(db, 'Schedule', False)
+        for row in sch_rows:
+            if row[1] == schedule_arg:
+                await dem.send_embed(ctx, "선택한 일정의 정보는 다음과 같습니다.",
+                                     "일정 이름 : " + row[1] + "\n"
+                                     + "일정 일시 : " + row[2] + "\n"
+                                     + "일정 반복 주기 : " + str(row[4]) + "\n\n"
+                                     + "여기서 이름, 일시, 주기 순으로 수정할 내용을 띄어쓰기로 구분해 입력해 주세요."
+                                     + " 수정하지 않을 부분은 '그대로' 라고 적어주세요."
+                                     + " 그리고 일시는 YYYYMMDD-HHMM의 형식으로 적어 주세요."
+                                     + "\n입력 예시 : 내생일 20210102-0100 그대로")
+
+                # wait for message
+                def check(m):
+                    return m.author == ctx.author and m.channel == ctx.channel
+
+                try:
+                    modify_message = await bot.wait_for('message', check=check, timeout=60.0)
+                    message_str = modify_message.content
+                except asyncio.TimeoutError:
+                    await dem.send_embed(ctx, "입력 시간이 초과되었습니다.", "60초 내에 입력하지 않아 취소되었습니다.")
+                    return
+
+                # message to data
+                try:
+                    after_name, after_dt, after_rp = message_str.split()
+                except ValueError:
+                    await dem.send_embed(ctx, "오류가 발생했습니다.",
+                                         "형식에 맞지 않게 입력되었습니다.")
+                    return
+
+                after_dt = datetime.datetime.strptime(after_dt, '%Y%m%d-%H%M')
+                after_dt = after_dt.strftime('%Y-%m-%d %H:%M')
+
+                # modify
+                modify_bool = sch.modify_schedule_by_idx(db, row[0], after_name, after_dt, after_rp)
+                await dem.send_embed(ctx, '성공적으로 수정되었습니다.',
+                                     "일정 이름 : " + after_name + "\n"
+                                     + "일정 일시 : " + after_dt + "\n"
+                                     + "일정 반복 주기 : " + after_rp)
+
+                # modify message
+                message = await schedule_channel.fetch_message(row[3])
+                if not modify_bool['name']:
+                    after_name = row[1]
+                if not modify_bool['datetime']:
+                    after_dt = row[2]
+                if not modify_bool['repeat']:
+                    after_rp = row[4]
+                new_embed = discord.Embed(title=after_name,
+                                          description="일정이 추가되었습니다.\n\n" +
+                                                      "일정 일시 : " + after_dt +
+                                                      '\n' + '반복 주기 : ' + str(after_rp) + '일' +
+                                                      "\n\n이 일정의 알림을 받고 싶다면 이 메시지에 반응을 달아 주세요.")
+                await message.edit(embed=new_embed)
+                return
+
+    else:
+        await dem.send_embed(ctx, '오류가 발생했습니다.', '일정 관련 명령어 입력이 잘못되었습니다.')
 
 
 @bot.command(aliases=command_aliases['소라고둥'])
