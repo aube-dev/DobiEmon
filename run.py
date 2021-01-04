@@ -272,10 +272,14 @@ async def 일정(ctx, cmd_arg, schedule_arg=''):
             return
 
         schedule_datetime_tmp = datetime.datetime.strptime(date_arg + '-' + time_arg, '%Y%m%d-%H%M')
-        await sch.add_schedule(db, schedule_datetime_tmp, schedule_arg, repeat, reaction_message=None, bot=bot)
+        await sch.add_schedule(db, schedule_datetime_tmp, schedule_arg, repeat, bot)
+        repeat_str = ''
+        if int(repeat) > 0:
+            repeat_str += "\n일정 반복 주기 : " + str(repeat) + "일"
         await dem.send_embed(ctx, "일정 알림이 추가되었습니다.",
                              "일정 이름 : " + schedule_arg + "\n"
-                             + "일정 일시 : " + schedule_datetime_tmp.strftime('%Y-%m-%d %H:%M'))
+                             + "일정 일시 : " + schedule_datetime_tmp.strftime('%Y-%m-%d %H:%M')
+                             + repeat_str)
 
     elif cmd_arg == '삭제':
         sch_rows = dem.db_to_list(db, 'Schedule', False)
@@ -334,27 +338,9 @@ async def 일정(ctx, cmd_arg, schedule_arg=''):
                 after_dt = datetime.datetime.strptime(after_dt, '%Y%m%d-%H%M')
                 after_dt = after_dt.strftime('%Y-%m-%d %H:%M')
 
-                # modify
-                modify_bool = sch.modify_schedule_by_idx(db, row[0], after_name, after_dt, after_rp)
-                await dem.send_embed(ctx, '성공적으로 수정되었습니다.',
-                                     "일정 이름 : " + after_name + "\n"
-                                     + "일정 일시 : " + after_dt + "\n"
-                                     + "일정 반복 주기 : " + after_rp)
+                await sch.modify_schedule_by_idx(db, after_name, after_dt, after_rp,
+                                                 row, bot, ctx)
 
-                # modify message
-                message = await schedule_channel.fetch_message(row[3])
-                if not modify_bool['name']:
-                    after_name = row[1]
-                if not modify_bool['datetime']:
-                    after_dt = row[2]
-                if not modify_bool['repeat']:
-                    after_rp = row[4]
-                new_embed = discord.Embed(title=after_name,
-                                          description="일정이 추가되었습니다.\n\n" +
-                                                      "일정 일시 : " + after_dt +
-                                                      '\n' + '반복 주기 : ' + str(after_rp) + '일' +
-                                                      "\n\n이 일정의 알림을 받고 싶다면 이 메시지에 반응을 달아 주세요.")
-                await message.edit(embed=new_embed)
                 return
 
     else:
