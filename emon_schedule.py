@@ -67,7 +67,7 @@ async def modify_schedule_by_idx(db, after_name, after_datetime, after_repeat, r
         if modify['datetime']:
             cur.execute(modify_sch_db_str + "Datetime = '" + after_datetime + "' WHERE id = ?",  (row[0],))
         if modify['repeat']:
-            cur.execute(modify_sch_db_str + "Repeat = " + after_repeat + " WHERE id = ?",  (row[0],))
+            cur.execute(modify_sch_db_str + "Repeat = " + str(after_repeat) + " WHERE id = ?",  (row[0],))
         db.commit()
 
     if not modify['name']:
@@ -81,7 +81,7 @@ async def modify_schedule_by_idx(db, after_name, after_datetime, after_repeat, r
         await dem.send_embed(ctx, '성공적으로 수정되었습니다.',
                              "일정 이름 : " + after_name + "\n"
                              + "일정 일시 : " + after_datetime + "\n"
-                             + "일정 반복 주기 : " + after_repeat + "일")
+                             + "일정 반복 주기 : " + str(after_repeat) + "일")
 
     # modify message
     schedule_channel = bot.get_channel(SCHEDULE_CHANNEL_ID)
