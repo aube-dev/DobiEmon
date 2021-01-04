@@ -1,3 +1,5 @@
+import discord
+
 import asyncio
 import datetime
 import json
@@ -14,22 +16,19 @@ with open('information.json') as json_file:
 # --------------------------------------------------
 
 
-async def add_schedule(db, dt, name_str, repeat, reaction_message, bot):
+async def add_schedule(db, dt, name_str, repeat, bot):
     repeat_str = ''
     if repeat:
         repeat_str += '\n' + '반복 주기 : ' + str(repeat) + '일'
 
     message_id = 0
-    if reaction_message:
-        message_id += reaction_message
-    else:
-        schedule_channel = bot.get_channel(SCHEDULE_CHANNEL_ID)
-        message = await dem.send_embed(schedule_channel, name_str,
-                                       "일정이 추가되었습니다.\n\n" +
-                                       "일정 일시 : " + dt.strftime('%Y-%m-%d %H:%M') +
-                                       repeat_str +
-                                       "\n\n이 일정의 알림을 받고 싶다면 이 메시지에 반응을 달아 주세요.")
-        message_id += message.id
+    schedule_channel = bot.get_channel(SCHEDULE_CHANNEL_ID)
+    message = await dem.send_embed(schedule_channel, name_str,
+                                   "일정이 추가되었습니다.\n\n" +
+                                   "일정 일시 : " + dt.strftime('%Y-%m-%d %H:%M') +
+                                   repeat_str +
+                                   "\n\n이 일정의 알림을 받고 싶다면 이 메시지에 반응을 달아 주세요.")
+    message_id += message.id
 
     with db:
         cur = db.cursor()
@@ -51,7 +50,7 @@ async def del_schedule_by_idx(db, schedule_index, message_id, bot):
     await message.delete()
 
 
-def modify_schedule_by_idx(db, schedule_index, after_name, after_datetime, after_repeat):
+async def modify_schedule_by_idx(db, after_name, after_datetime, after_repeat, row, bot, ctx=None):
     modify = {'name': True, 'datetime': True, 'repeat': True}
     if after_name == '그대로':
         modify['name'] = False
@@ -64,14 +63,38 @@ def modify_schedule_by_idx(db, schedule_index, after_name, after_datetime, after
         cur = db.cursor()
         modify_sch_db_str = 'UPDATE Schedule SET '
         if modify['name']:
-            cur.execute(modify_sch_db_str + "Schedule_Name = '" + after_name + "' WHERE id = ?",  (schedule_index,))
+            cur.execute(modify_sch_db_str + "Schedule_Name = '" + after_name + "' WHERE id = ?",  (row[0],))
         if modify['datetime']:
-            cur.execute(modify_sch_db_str + "Datetime = '" + after_datetime + "' WHERE id = ?",  (schedule_index,))
+            cur.execute(modify_sch_db_str + "Datetime = '" + after_datetime + "' WHERE id = ?",  (row[0],))
         if modify['repeat']:
-            cur.execute(modify_sch_db_str + "Repeat = " + after_repeat + " WHERE id = ?",  (schedule_index,))
+            cur.execute(modify_sch_db_str + "Repeat = " + str(after_repeat) + " WHERE id = ?",  (row[0],))
         db.commit()
 
-    return modify
+    if not modify['name']:
+        after_name = row[1]
+    if not modify['datetime']:
+        after_datetime = row[2]
+    if not modify['repeat']:
+        after_repeat = row[4]
+
+    if ctx:
+        await dem.send_embed(ctx, '성공적으로 수정되었습니다.',
+                             "일정 이름 : " + after_name + "\n"
+                             + "일정 일시 : " + after_datetime + "\n"
+                             + "일정 반복 주기 : " + str(after_repeat) + "일")
+
+    # modify message
+    schedule_channel = bot.get_channel(SCHEDULE_CHANNEL_ID)
+    message = await schedule_channel.fetch_message(row[3])
+    repeat_str = ''
+    if int(after_repeat) > 0:
+        repeat_str += '\n반복 주기 : ' + str(after_repeat) + '일'
+    new_embed = discord.Embed(title=after_name,
+                              description="일정이 추가되었습니다.\n\n" +
+                                          "일정 일시 : " + after_datetime +
+                                          repeat_str +
+                                          "\n\n이 일정의 알림을 받고 싶다면 이 메시지에 반응을 달아 주세요.")
+    await message.edit(embed=new_embed)
 
 
 async def scheduler(db, bot):
@@ -102,7 +125,7 @@ async def scheduler(db, bot):
                     await del_schedule_by_idx(db, row[0], row[3], bot)
                 else:
                     next_datetime = datetime_tmp + datetime.timedelta(days=row[4])
-                    await add_schedule(db, next_datetime, row[1], row[4], reaction_message=row[3], bot=bot)
-                    await del_schedule_by_idx(db, row[0], row[3], bot)
+                    await modify_schedule_by_idx(db, '그대로', next_datetime.strftime('%Y-%m-%d %H:%M'), '그대로',
+                                                 row, bot)
 
         await asyncio.sleep(5)
