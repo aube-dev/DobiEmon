@@ -7,20 +7,13 @@ music_queue = []
 
 
 class Track:
-    __slots__ = 'path', 'status'
+    __slots__ = 'path'
 
-    def __init__(self, path, status='NOT PLAYING'):
+    def __init__(self, path):
         self.path = path
-        self.status = status
 
     def get_title(self):
         return str(self.path).replace('musics\\', '')
-
-    def play(self):
-        self.status = 'PLAYING'
-
-    def stop(self):
-        self.status = 'NOT PLAYING'
 
 
 def create_audio_source(path):
@@ -35,8 +28,6 @@ def add_queue(track):
 
 def clean_queue():
     global music_queue
-    for track in music_queue:
-        track.stop()
     music_queue = []
 
 
@@ -49,14 +40,12 @@ async def play_music(ctx, bot):
             if not music_queue:
                 return
             last_track = music_queue[0]
-            last_track.stop()
             del music_queue[0]
 
             if vc and music_queue:
                 next_track = music_queue[0]
                 next_track_audio_source = create_audio_source(next_track.path)
                 vc.play(next_track_audio_source, after=after_play)
-                next_track.play()
                 dem.run_coroutine(dem.send_embed(ctx, '음악 재생이 시작됩니다.', '음악 제목 : ' + next_track.get_title()), bot)
             elif vc and not music_queue:
                 dem.run_coroutine(vc.disconnect(), bot)
@@ -68,5 +57,4 @@ async def play_music(ctx, bot):
         track = music_queue[0]
         audio_source = create_audio_source(track.path)
         vc.play(audio_source, after=after_play)
-        track.play()
         await dem.send_embed(ctx, '음악 재생이 시작됩니다.', '음악 제목 : ' + track.get_title())
