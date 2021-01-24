@@ -247,9 +247,7 @@ dmypy.json
 
 # End of https://www.toptal.com/developers/gitignore/api/python,pycharm
 
-# token and ids
-token.txt
-schedule_channel_id.txt
+# informations
 information.json
 
 # datas
@@ -258,3 +256,6 @@ musics/
 
 # database
 *.db
+
+# aliases - pickle
+aliases.pickle
