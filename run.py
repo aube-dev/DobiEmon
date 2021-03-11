@@ -14,6 +14,8 @@ import pickle
 import datetime
 import asyncio
 
+import random
+
 import emon_magics as dem
 import emon_schedule as sch
 import emon_music as music
@@ -21,7 +23,7 @@ import emon_music as music
 # --------------------------------------------------
 
 # Are you testing this bot?
-is_testing = True
+is_testing = False
 if is_testing:
     token_key = 'token_test'
     command_prefix = 't-'
@@ -505,6 +507,49 @@ async def 룰렛(ctx):
         await selected_member.move_to(ctx.guild.afk_channel)
     except:
         await dem.send_embed(ctx, '오류가 발생했습니다.', '보내려는 유저를 잠수 채널로 보낼 수 없습니다.')
+
+
+@bot.command(aliases=command_aliases['팀'])
+async def 팀(ctx):
+    agree_emoji = '\U0001F44D'
+    waiting_time = 30
+    vote_message = await dem.send_embed(ctx, '팀 배정이 시작됩니다.',
+                                        '<@' + str(ctx.message.author.id) + '> 님이\n'
+                                        + '팀 배정을 시작했습니다.'
+                                        + '\n\n참여를 원하시면, ' + str(waiting_time)
+                                        + '초 내에 이 메시지에 반응 ' + agree_emoji + ' 을 달아 주세요.')
+    await vote_message.add_reaction(agree_emoji)
+    await asyncio.sleep(waiting_time)
+
+    vote_message_fetch = await ctx.fetch_message(vote_message.id)
+    agree_users_list = await dem.check_reaction_users(vote_message_fetch, agree_emoji)
+
+    real_agree_users = []
+    for agree in agree_users_list:
+        agree_user = await bot.fetch_user(agree)
+        if not agree_user.bot:
+            real_agree_users.append(agree)
+
+    agrees = len(real_agree_users)
+    red_teams = agrees // 2
+
+    random.shuffle(real_agree_users)
+    red_team = real_agree_users[:red_teams]
+    blue_team = real_agree_users[red_teams:]
+
+    red_team_str = ''
+    for user_id in red_team:
+        red_team_str += ' <@' + str(user_id) + '>'
+    blue_team_str = ''
+    for user_id in blue_team:
+        blue_team_str += ' <@' + str(user_id) + '>'
+
+    red_team_str = red_team_str[1:]
+    blue_team_str = blue_team_str[1:]
+
+    await dem.send_embed(ctx, '팀 배정이 완료되었습니다.',
+                         '[레드 팀]\n' + red_team_str
+                         + '\n\n[블루 팀]\n' + blue_team_str)
 
 
 # --------------------------------------------------
