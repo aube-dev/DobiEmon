@@ -21,7 +21,7 @@ import emon_music as music
 # --------------------------------------------------
 
 # Are you testing this bot?
-is_testing = False
+is_testing = True
 if is_testing:
     token_key = 'token_test'
     command_prefix = 't-'
@@ -471,6 +471,40 @@ async def 추방투표(ctx, vote_user_mention):
         await dem.send_embed(ctx, '추방하지 않는 것으로 결정되었습니다.',
                              vote_user_mention + ' 님의 추방이 찬성 ' + str(agrees) + '표,'
                              + "\n반대 " + str(disagrees) + "표로 부결되었습니다.")
+
+
+@bot.command(aliases=command_aliases['룰렛'])
+async def 룰렛(ctx):
+    agree_emoji = '\U0001F44D'
+    waiting_time = 30
+    vote_message = await dem.send_embed(ctx, '러시안 룰렛이 시작됩니다!',
+                                        '<@' + str(ctx.message.author.id) + '> 님이\n'
+                                        + '러시안 룰렛을 시작했습니다.'
+                                        + '\n\n참여를 원하시면, ' + str(waiting_time)
+                                        + '초 내에 이 메시지에 반응 ' + agree_emoji + ' 을 달아 주세요.'
+                                        + '\n종료 시점에 음성 채널에 들어가 있지 않은 분은 제외됩니다.')
+    await vote_message.add_reaction(agree_emoji)
+    await asyncio.sleep(waiting_time)
+
+    vote_message_fetch = await ctx.fetch_message(vote_message.id)
+    agree_users_list = await dem.check_reaction_users(vote_message_fetch, agree_emoji)
+
+    real_agree_users = []
+    for agree in agree_users_list:
+        agree_member = await ctx.guild.fetch_member(agree)
+        if not agree_member.bot and agree_member.voice:
+            real_agree_users.append(agree)
+
+    selected_user_id = dem.random(real_agree_users, None)
+    await dem.send_embed(ctx, '러시안 룰렛 당첨자가 결정되었습니다!',
+                         '<@' + str(selected_user_id) + '> 님이\n'
+                         + '러시안 룰렛의 당첨자가 되셨습니다.')
+
+    try:
+        selected_member = await ctx.guild.fetch_member(selected_user_id)
+        await selected_member.move_to(ctx.guild.afk_channel)
+    except:
+        await dem.send_embed(ctx, '오류가 발생했습니다.', '보내려는 유저를 잠수 채널로 보낼 수 없습니다.')
 
 
 # --------------------------------------------------
