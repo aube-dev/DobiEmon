@@ -208,14 +208,17 @@ async def 오퍼(ctx, arg):
     if r6_operator == '':
         await dem.send_embed(ctx, "올바른 형식이 아닙니다.", "도움말을 참조해 다시 입력해 주세요.")
     else:
-        await dem.send_embed(ctx, "당신께 추천드리는, 이번 게임에 선택할 오퍼레이터는...", r6_operator + "입니다.")
+        await dem.send_embed(ctx, "추천하는 오퍼레이터는...",
+                             r6_operator + "입니다." +
+                             "\n<@" + str(ctx.author.id) + ">")
 
 
 @bot.command(aliases=command_aliases['메뉴'])
 async def 메뉴(ctx):
     menu, menu_p = dem.db_to_list(db, 'Menu', True)
     menu_final = dem.random(menu, menu_p)
-    await dem.send_embed(ctx, "당신께 추천드리는, 오늘의 메뉴는...", menu_final + "입니다.")
+    await dem.send_embed(ctx, "추천하는 메뉴는...", menu_final + "입니다."
+                         + "\n<@" + str(ctx.author.id) + ">")
 
 
 @bot.command(aliases=command_aliases['식당'])
@@ -238,7 +241,8 @@ async def 식당(ctx):
     if bool(res_extra_message):
         res_extra_message = "\n" + res_extra_message
 
-    await dem.send_embed(ctx, "당신께 추천드리는, 오늘의 식당은...", res_final + "입니다." + res_extra_message)
+    await dem.send_embed(ctx, "추천하는 식당은...", res_final + "입니다." + res_extra_message
+                         + "\n<@" + str(ctx.author.id) + ">")
 
 
 @bot.command(aliases=command_aliases['일정'])
