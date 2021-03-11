@@ -363,6 +363,19 @@ async def 처벌(ctx):
 
 @bot.command(aliases=command_aliases['음악'])
 async def 음악(ctx, *, music_keyword):
+    if music_keyword == '목록':
+        music_queue = music.get_queue()
+        embed = discord.Embed()
+        for idx, track in enumerate(music_queue):
+            if idx == 0:
+                embed.add_field(name="0번째 [현재 재생중]:",
+                                value=track.get_title(), inline=False)
+            else:
+                embed.add_field(name=str(idx) + "번째:",
+                                value=track.get_title(), inline=False)
+        await ctx.send(embed=embed)
+        return
+
     guild = ctx.guild
     voice_client: discord.VoiceClient = guild.voice_client
 
@@ -382,8 +395,11 @@ async def 음악(ctx, *, music_keyword):
         if not voice_client:
             channel = ctx.author.voice.channel
             await channel.connect()
-        music.add_queue(music.Track(music_path))
-        await dem.send_embed(ctx, '음악이 대기 목록에 추가되었습니다.', '대기열 순서에 따라 재생됩니다.')
+        music_for_add = music.Track(music_path)
+        music.add_queue(music_for_add)
+        await dem.send_embed(ctx, '음악이 대기 목록에 추가되었습니다.',
+                             '추가된 음악 : ' + music_for_add.get_title() +
+                             '\n대기열 순서에 따라 재생됩니다.')
         await music.play_music(ctx, bot)
 
 
@@ -396,6 +412,11 @@ async def 퇴장(ctx):
         return
     music.clean_queue()
     await voice_client.disconnect()
+
+
+@bot.command(aliases=command_aliases['스킵'])
+async def 스킵(ctx):
+    music.skip_music(ctx, bot)
 
 
 @bot.command(aliases=command_aliases['추방투표'])
