@@ -14,6 +14,8 @@ import pickle
 import datetime
 import asyncio
 
+import random
+
 import emon_magics as dem
 import emon_schedule as sch
 import emon_music as music
@@ -206,14 +208,17 @@ async def 오퍼(ctx, arg):
     if r6_operator == '':
         await dem.send_embed(ctx, "올바른 형식이 아닙니다.", "도움말을 참조해 다시 입력해 주세요.")
     else:
-        await dem.send_embed(ctx, "당신께 추천드리는, 이번 게임에 선택할 오퍼레이터는...", r6_operator + "입니다.")
+        await dem.send_embed(ctx, "추천하는 오퍼레이터는...",
+                             r6_operator + "입니다." +
+                             "\n<@" + str(ctx.author.id) + ">")
 
 
 @bot.command(aliases=command_aliases['메뉴'])
 async def 메뉴(ctx):
     menu, menu_p = dem.db_to_list(db, 'Menu', True)
     menu_final = dem.random(menu, menu_p)
-    await dem.send_embed(ctx, "당신께 추천드리는, 오늘의 메뉴는...", menu_final + "입니다.")
+    await dem.send_embed(ctx, "추천하는 메뉴는...", menu_final + "입니다."
+                         + "\n<@" + str(ctx.author.id) + ">")
 
 
 @bot.command(aliases=command_aliases['식당'])
@@ -236,7 +241,8 @@ async def 식당(ctx):
     if bool(res_extra_message):
         res_extra_message = "\n" + res_extra_message
 
-    await dem.send_embed(ctx, "당신께 추천드리는, 오늘의 식당은...", res_final + "입니다." + res_extra_message)
+    await dem.send_embed(ctx, "추천하는 식당은...", res_final + "입니다." + res_extra_message
+                         + "\n<@" + str(ctx.author.id) + ">")
 
 
 @bot.command(aliases=command_aliases['일정'])
@@ -363,6 +369,19 @@ async def 처벌(ctx):
 
 @bot.command(aliases=command_aliases['음악'])
 async def 음악(ctx, *, music_keyword):
+    if music_keyword == '목록':
+        music_queue = music.get_queue()
+        embed = discord.Embed()
+        for idx, track in enumerate(music_queue):
+            if idx == 0:
+                embed.add_field(name="0번째 [현재 재생중]:",
+                                value=track.get_title(), inline=False)
+            else:
+                embed.add_field(name=str(idx) + "번째:",
+                                value=track.get_title(), inline=False)
+        await ctx.send(embed=embed)
+        return
+
     guild = ctx.guild
     voice_client: discord.VoiceClient = guild.voice_client
 
@@ -382,8 +401,11 @@ async def 음악(ctx, *, music_keyword):
         if not voice_client:
             channel = ctx.author.voice.channel
             await channel.connect()
-        music.add_queue(music.Track(music_path))
-        await dem.send_embed(ctx, '음악이 대기 목록에 추가되었습니다.', '대기열 순서에 따라 재생됩니다.')
+        music_for_add = music.Track(music_path)
+        music.add_queue(music_for_add)
+        await dem.send_embed(ctx, '음악이 대기 목록에 추가되었습니다.',
+                             '추가된 음악 : ' + music_for_add.get_title() +
+                             '\n대기열 순서에 따라 재생됩니다.')
         await music.play_music(ctx, bot)
 
 
@@ -396,6 +418,11 @@ async def 퇴장(ctx):
         return
     music.clean_queue()
     await voice_client.disconnect()
+
+
+@bot.command(aliases=command_aliases['스킵'])
+async def 스킵(ctx):
+    music.skip_music(ctx, bot)
 
 
 @bot.command(aliases=command_aliases['추방투표'])
@@ -450,6 +477,83 @@ async def 추방투표(ctx, vote_user_mention):
         await dem.send_embed(ctx, '추방하지 않는 것으로 결정되었습니다.',
                              vote_user_mention + ' 님의 추방이 찬성 ' + str(agrees) + '표,'
                              + "\n반대 " + str(disagrees) + "표로 부결되었습니다.")
+
+
+@bot.command(aliases=command_aliases['룰렛'])
+async def 룰렛(ctx):
+    agree_emoji = '\U0001F44D'
+    waiting_time = 30
+    vote_message = await dem.send_embed(ctx, '러시안 룰렛이 시작됩니다!',
+                                        '<@' + str(ctx.message.author.id) + '> 님이\n'
+                                        + '러시안 룰렛을 시작했습니다.'
+                                        + '\n\n참여를 원하시면, ' + str(waiting_time)
+                                        + '초 내에 이 메시지에 반응 ' + agree_emoji + ' 을 달아 주세요.'
+                                        + '\n종료 시점에 음성 채널에 들어가 있지 않은 분은 제외됩니다.')
+    await vote_message.add_reaction(agree_emoji)
+    await asyncio.sleep(waiting_time)
+
+    vote_message_fetch = await ctx.fetch_message(vote_message.id)
+    agree_users_list = await dem.check_reaction_users(vote_message_fetch, agree_emoji)
+
+    real_agree_users = []
+    for agree in agree_users_list:
+        agree_member = await ctx.guild.fetch_member(agree)
+        if not agree_member.bot and agree_member.voice:
+            real_agree_users.append(agree)
+
+    selected_user_id = dem.random(real_agree_users, None)
+    await dem.send_embed(ctx, '러시안 룰렛 당첨자가 결정되었습니다!',
+                         '<@' + str(selected_user_id) + '> 님이\n'
+                         + '러시안 룰렛의 당첨자가 되셨습니다.')
+
+    try:
+        selected_member = await ctx.guild.fetch_member(selected_user_id)
+        await selected_member.move_to(ctx.guild.afk_channel)
+    except:
+        await dem.send_embed(ctx, '오류가 발생했습니다.', '보내려는 유저를 잠수 채널로 보낼 수 없습니다.')
+
+
+@bot.command(aliases=command_aliases['팀'])
+async def 팀(ctx):
+    agree_emoji = '\U0001F44D'
+    waiting_time = 30
+    vote_message = await dem.send_embed(ctx, '팀 배정이 시작됩니다.',
+                                        '<@' + str(ctx.message.author.id) + '> 님이\n'
+                                        + '팀 배정을 시작했습니다.'
+                                        + '\n\n참여를 원하시면, ' + str(waiting_time)
+                                        + '초 내에 이 메시지에 반응 ' + agree_emoji + ' 을 달아 주세요.')
+    await vote_message.add_reaction(agree_emoji)
+    await asyncio.sleep(waiting_time)
+
+    vote_message_fetch = await ctx.fetch_message(vote_message.id)
+    agree_users_list = await dem.check_reaction_users(vote_message_fetch, agree_emoji)
+
+    real_agree_users = []
+    for agree in agree_users_list:
+        agree_user = await bot.fetch_user(agree)
+        if not agree_user.bot:
+            real_agree_users.append(agree)
+
+    agrees = len(real_agree_users)
+    red_teams = agrees // 2
+
+    random.shuffle(real_agree_users)
+    red_team = real_agree_users[:red_teams]
+    blue_team = real_agree_users[red_teams:]
+
+    red_team_str = ''
+    for user_id in red_team:
+        red_team_str += ' <@' + str(user_id) + '>'
+    blue_team_str = ''
+    for user_id in blue_team:
+        blue_team_str += ' <@' + str(user_id) + '>'
+
+    red_team_str = red_team_str[1:]
+    blue_team_str = blue_team_str[1:]
+
+    await dem.send_embed(ctx, '팀 배정이 완료되었습니다.',
+                         '[레드 팀]\n' + red_team_str
+                         + '\n\n[블루 팀]\n' + blue_team_str)
 
 
 # --------------------------------------------------
