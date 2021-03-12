@@ -714,10 +714,11 @@ async def 끝말잇기(ctx):
                     is_correct = False
 
             if not is_proper:
-                await dem.send_embed(ctx, '입력이 적절하지 않아요...',
-                                     '<@' + str(word_message.author.id) + '> 님의 입력이 적절하지 않습니다.'
-                                     + not_proper_str
-                                     + '\n\n<@' + str(word_message.author.id) + '>님부터 다시 시작합니다.')
+                past_message = await dem.send_embed(
+                    ctx, '입력이 적절하지 않아요...',
+                    '<@' + str(word_message.author.id) + '> 님의 입력이 적절하지 않습니다.'
+                    + not_proper_str
+                    + '\n\n<@' + str(word_message.author.id) + '>님부터 다시 시작합니다.')
                 await past_message.add_reaction(pause_str)
                 await past_message.add_reaction(end_str)
                 continue
