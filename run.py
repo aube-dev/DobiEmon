@@ -591,7 +591,7 @@ async def 끝말잇기(ctx):
                                         + '\n\n[참가자]\n' + agree_users_str
                                         + '\n\n[규칙]\n'
                                         + '- 자신의 차례가 되면 앞의 낱말의 끝 글자로 시작하는 낱말을 입력해 주세요.'
-                                        + '\n- 띄어쓰기를 제한하지는 않지만, 이 부분은 참가자 분들끼리 합의해 주세요.'
+                                        + '\n- 띄어쓰기는 입력해도 무시됩니다.'
                                         + '\n- 자신의 차례가 되면 낱말을 ' + str(word_time) + '초 이내에 입력해야 합니다.'
                                         + '\n- 앞 낱말의 끝 글자로 시작하지 않으면, 경고와 함께 다시 입력할 수 있는 기회를 드립니다.'
                                         + ' 제한 시간도 다시 초기화됩니다.'
@@ -608,6 +608,7 @@ async def 끝말잇기(ctx):
     current_idx = 0
     is_pausing = False
     past_word = ''
+    word_list = []
     while True:
         real_word_time = float(word_time)
         if is_pausing:
@@ -691,12 +692,35 @@ async def 끝말잇기(ctx):
             break
         else:
             current_word = word_message.content
-            current_word.strip()
+            current_word = current_word.lower()
+            current_word = current_word.replace(' ', '')
 
             is_correct = True
+            is_proper = True
+            not_correct_str = ''
+            not_proper_str = ''
+            if not current_word.isalnum():
+                is_proper = False
+                not_proper_str += '\n특수문자 없이 입력해 주세요!'
+            if len(current_word) == 1:
+                is_correct = False
+                not_correct_str += '\n두 글자 이상의 낱말을 적어 주세요!'
+            if current_word in word_list:
+                is_correct = False
+                not_correct_str += '\n이미 등장한 낱말이에요!'
+
             if past_word:
                 if past_word[-1] != current_word[0]:
                     is_correct = False
+
+            if not is_proper:
+                await dem.send_embed(ctx, '입력이 적절하지 않아요...',
+                                     '<@' + str(word_message.author.id) + '> 님의 입력이 적절하지 않습니다.'
+                                     + not_proper_str
+                                     + '\n\n<@' + str(word_message.author.id) + '>님부터 다시 시작합니다.')
+                await past_message.add_reaction(pause_str)
+                await past_message.add_reaction(end_str)
+                continue
 
             if is_correct:
                 if current_idx == participants - 1:
@@ -706,16 +730,21 @@ async def 끝말잇기(ctx):
 
                 past_message = await dem.send_embed(ctx, '끝말을 잘 잇고 있어요!',
                                                     '<@' + str(word_message.author.id) + '> 님이 앞 낱말의 끝말을 잘 잇고 있습니다.'
-                                                    + '\n입력한 낱말: ' + current_word
+                                                    + '\n\n[입력한 낱말]\n' + current_word
                                                     + '\n\n다음은 <@' + str(real_agree_users[current_idx]) + '> 님의 차례입니다.')
                 past_word = current_word
+                word_list.append(current_word)
                 await past_message.add_reaction(pause_str)
                 await past_message.add_reaction(end_str)
             else:
-                await dem.send_embed(ctx, '끝말을 잘 잇지 못했어요...',
-                                     '<@' + str(word_message.author.id) + '> 님이 앞 낱말의 끝말을 잘 잇지 못했습니다.'
-                                     + '\n<@' + str(word_message.author.id) + '> 님의 패배로 게임이 종료됩니다.')
-                break
+                past_message = await dem.send_embed(
+                    ctx, '끝말을 잘 잇지 못했어요...',
+                    '<@' + str(word_message.author.id) + '> 님이 앞 낱말의 끝말을 잘 잇지 못했습니다.'
+                    + not_correct_str
+                    + '\n\n기회가 다시 주어집니다! <@' + str(word_message.author.id) + '> 님부터 다시 시작합니다.'
+                )
+                await past_message.add_reaction(pause_str)
+                await past_message.add_reaction(end_str)
 
 
 # --------------------------------------------------
