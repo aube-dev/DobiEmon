@@ -556,6 +556,168 @@ async def 팀(ctx):
                          + '\n\n[블루 팀]\n' + blue_team_str)
 
 
+@bot.command()
+async def 끝말잇기(ctx):
+    agree_emoji = '\U0001F44D'
+    waiting_time = 10
+    vote_message = await dem.send_embed(ctx, '끝말잇기가 시작됩니다.',
+                                        '<@' + str(ctx.message.author.id) + '> 님이\n'
+                                        + '끝말잇기를 시작했습니다.'
+                                        + '\n\n참여를 원하시면, ' + str(waiting_time)
+                                        + '초 내에 이 메시지에 반응 ' + agree_emoji + ' 을 달아 주세요.')
+    await vote_message.add_reaction(agree_emoji)
+    await asyncio.sleep(waiting_time)
+
+    vote_message_fetch = await ctx.fetch_message(vote_message.id)
+    agree_users_list = await dem.check_reaction_users(vote_message_fetch, agree_emoji)
+
+    real_agree_users = []
+    for agree in agree_users_list:
+        agree_user = await bot.fetch_user(agree)
+        if not agree_user.bot:
+            real_agree_users.append(agree)
+
+    agree_users_str = ''
+    for agree in real_agree_users:
+        agree_users_str += ' <@' + str(agree) + '>'
+
+    word_time = 10
+    pause_str = '\u23F8'
+    continue_str = '\u25B6'
+    end_str = '\u23F9'
+
+    past_message = await dem.send_embed(ctx, '끝말잇기를 시작합니다.',
+                                        '<@' + str(ctx.message.author.id) + '> 님이 제안하신 끝말잇기를 시작합니다.'
+                                        + '\n\n[참가자]\n' + agree_users_str
+                                        + '\n\n[규칙]\n'
+                                        + '- 자신의 차례가 되면 앞의 낱말의 끝 글자로 시작하는 낱말을 입력해 주세요.'
+                                        + '\n- 띄어쓰기를 제한하지는 않지만, 이 부분은 참가자 분들끼리 합의해 주세요.'
+                                        + '\n- 자신의 차례가 되면 낱말을 ' + str(word_time) + '초 이내에 입력해야 합니다.'
+                                        + '\n- 앞 낱말의 끝 글자로 시작하지 않으면, 경고와 함께 다시 입력할 수 있는 기회를 드립니다.'
+                                        + ' 제한 시간도 다시 초기화됩니다.'
+                                        + "\n- 잠시 게임을 일시정지해야 하면 " + pause_str + " 를 눌러 주세요."
+                                        + " 다시 재개하고 싶을 때는 " + continue_str + " 를 누르면 됩니다."
+                                        + "\n- 게임을 아예 종료하고 싶으시면, " + end_str + " 를 눌러 주세요."
+                                        + '\n\n먼저 <@' + str(real_agree_users[0]) + '> 님부터 시작합니다.'
+                                        + ' 낱말을 하나 입력해 주세요.')
+
+    await past_message.add_reaction(pause_str)
+    await past_message.add_reaction(end_str)
+
+    participants = len(real_agree_users)
+    current_idx = 0
+    is_pausing = False
+    past_word = ''
+    while True:
+        real_word_time = float(word_time)
+        if is_pausing:
+            real_word_time = None
+
+        def check(message):
+            if is_pausing:
+                return False
+            else:
+                return message.author.id == real_agree_users[current_idx]
+
+        def reaction_check(reaction, user):
+            return reaction.message == past_message and user.id in real_agree_users
+
+        async def message_wait():
+            try:
+                message = await bot.wait_for('message', check=check, timeout=real_word_time)
+                return message
+            except:
+                return asyncio.TimeoutError
+
+        async def reaction_wait():
+            try:
+                r, u = await bot.wait_for('reaction_add', check=reaction_check, timeout=real_word_time)
+                return r, u
+            except:
+                return asyncio.TimeoutError
+
+        message_task = asyncio.create_task(message_wait())
+        reaction_task = asyncio.create_task(reaction_wait())
+        done, pending = await asyncio.wait({message_task, reaction_task}, return_when=asyncio.FIRST_COMPLETED)
+
+        is_reacted = False
+        if message_task in done:
+            if message_task.result() == asyncio.TimeoutError:
+                await dem.send_embed(ctx, '시간이 초과되었습니다.',
+                                     '<@' + str(real_agree_users[current_idx]) + '> 님이 낱말을 입력하지 못하셨습니다.'
+                                     + '\n<@' + str(real_agree_users[current_idx]) + '> 님의 패배로 게임이 종료됩니다.')
+                break
+            else:
+                word_message = message_task.result()
+        elif reaction_task in done:
+            if reaction_task.result() == asyncio.TimeoutError:
+                await dem.send_embed(ctx, '시간이 초과되었습니다.',
+                                     '<@' + str(real_agree_users[current_idx]) + '> 님이 낱말을 입력하지 못하셨습니다.'
+                                     + '\n<@' + str(real_agree_users[current_idx]) + '> 님의 패배로 게임이 종료됩니다.')
+                break
+            else:
+                react_reaction, react_user = reaction_task.result()
+                is_reacted = True
+
+        for pending_task in pending:
+            pending_task.cancel()
+
+        if is_reacted and react_reaction.emoji == pause_str:
+            past_message = await dem.send_embed(ctx, '끝말잇기가 일시정지됩니다.',
+                                                '<@' + str(react_user.id) + '> 님의 요청으로 끝말잇기가 일시정지됩니다.'
+                                                + "\n재개하려면 " + continue_str + " 를, 게임을 종료하려면 " + end_str + " 를 눌러 주세요."
+                                                + "\n\n[국립국어원 표준국어대사전]"
+                                                + "(https://stdict.korean.go.kr/main/main.do)")
+            is_pausing = True
+            await past_message.add_reaction(continue_str)
+            await past_message.add_reaction(end_str)
+        elif is_reacted and react_reaction.emoji == continue_str:
+            if is_pausing:
+                past_message = await dem.send_embed(ctx, '끝말잇기가 재개됩니다.',
+                                                    '<@' + str(react_user.id) + '> 님의 요청으로 끝말잇기가 재개됩니다.'
+                                                    + "\n<@" + str(real_agree_users[current_idx]) + "> 님부터 다시 시작합니다.")
+                is_pausing = False
+                await past_message.add_reaction(pause_str)
+                await past_message.add_reaction(end_str)
+            else:
+                past_message = await dem.send_embed(ctx, '끝말잇기가 진행중입니다.',
+                                                    '끝말잇기가 이미 진행중이므로 재개할 수 없습니다.'
+                                                    + '\n<@' + str(real_agree_users[current_idx]) + '> 님의 순서가 다시 시작됩니다.')
+                await past_message.add_reaction(pause_str)
+                await past_message.add_reaction(end_str)
+        elif is_reacted and react_reaction.emoji == end_str:
+            await dem.send_embed(ctx, '끝말잇기가 종료됩니다.',
+                                 '<@' + str(react_user.id) + '>님의 요청으로 끝말잇기가 종료됩니다.')
+            break
+        else:
+            current_word = word_message.content
+            current_word.strip()
+
+            is_correct = True
+            if past_word:
+                if past_word[-1] != current_word[0]:
+                    is_correct = False
+
+            if is_correct:
+                if current_idx == participants - 1:
+                    current_idx = 0
+                else:
+                    current_idx += 1
+
+                past_message = await dem.send_embed(ctx, '끝말을 잘 잇고 있어요!',
+                                                    '<@' + str(word_message.author.id) + '> 님이 앞 낱말의 끝말을 잘 잇고 있습니다.'
+                                                    + '\n입력한 낱말: ' + current_word
+                                                    + '\n\n다음은 <@' + str(real_agree_users[current_idx]) + '> 님의 차례입니다.')
+                past_word = current_word
+                await past_message.add_reaction(pause_str)
+                await past_message.add_reaction(end_str)
+            else:
+                await dem.send_embed(ctx, '끝말을 잘 잇지 못했어요...',
+                                     '<@' + str(word_message.author.id) + '> 님이 앞 낱말의 끝말을 잘 잇지 못했습니다.'
+                                     + '\n<@' + str(word_message.author.id) + '> 님의 패배로 게임이 종료됩니다.')
+                break
+
+
 # --------------------------------------------------
 
 bot.loop.create_task(sch.scheduler(db, bot))
