@@ -559,7 +559,7 @@ async def 팀(ctx):
 @bot.command()
 async def 끝말잇기(ctx):
     agree_emoji = '\U0001F44D'
-    waiting_time = 10
+    waiting_time = 30
     vote_message = await dem.send_embed(ctx, '끝말잇기가 시작됩니다.',
                                         '<@' + str(ctx.message.author.id) + '> 님이\n'
                                         + '끝말잇기를 시작했습니다.'
