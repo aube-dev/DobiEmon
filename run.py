@@ -1,6 +1,8 @@
 import discord
 from discord.ext import commands
 from discord.ext.commands import CommandNotFound
+from discord_slash import SlashCommand, SlashContext
+from discord_slash.utils.manage_commands import create_option, create_choice
 
 import glob
 from pathlib import Path
@@ -38,12 +40,14 @@ with open('information.json') as json_file:
     SCHEDULE_CHANNEL_ID = int(json_data['schedule_channel_id'])
     SCHEDULE_NOTI_CHANNEL_ID = int(json_data['schedule_noti_channel_id'])
     OWNERS_ID = list(json_data['owners_id'])
+    GUILD_ID = int(json_data['guild_id'])
 
 # Settings
 game = discord.Game("-도움말")
 client = discord.Client()
 bot = commands.Bot(command_prefix=command_prefix, status=discord.Status.online, activity=game,
                    help_command=None)
+slash = SlashCommand(bot, sync_commands=True)
 
 # Database
 db = sqlite3.connect("dobiemon.db")
@@ -60,6 +64,10 @@ async def on_ready():
     print("봇 시작")
 
 
+@slash.slash(name="도움말",
+             description="도비에몽의 모든 것을 Notion 페이지로 확인하세요.",
+             options=[],
+             guild_ids=[GUILD_ID])
 @bot.command(aliases=command_aliases['도움말'])
 async def 도움말(ctx):
     await dem.send_embed(ctx, '도비에몽을 이용해 주시는 여러분!',
@@ -169,6 +177,17 @@ def get_file(file_list, file_keyword):
     return file_path
 
 
+@slash.slash(name="커져라",
+             description="이모티콘(이미지)을 이름으로 보내 보세요.",
+             options=[
+                 create_option(
+                     name="image_keyword",
+                     description="이모티콘(이미지)에 포함되는 키워드를 입력해 주세요.",
+                     option_type=3,
+                     required=True
+                 )
+             ],
+             guild_ids=[GUILD_ID])
 @bot.command(aliases=command_aliases['커져라'])
 async def 커져라(ctx, *, image_keyword):
     image_list = glob.glob('./images/*')
@@ -187,13 +206,37 @@ async def 커져라(ctx, *, image_keyword):
         image = discord.File(image_path)
         embed = discord.Embed()
         embed.set_author(name=ctx.author.name, icon_url=ctx.author.avatar_url)
-        await ctx.message.delete()
+
+        if not isinstance(ctx, SlashContext):
+            await ctx.message.delete()
+
         msg = await ctx.send(file=image)
         embed.set_image(url=msg.attachments[0].url)
         await ctx.send(embed=embed)
         await msg.delete()
 
 
+@slash.slash(name="오퍼",
+             description="Rainbow Six Siege의 대원들 중 하나를 추천해 드려요.",
+             options=[
+                 create_option(
+                     name="arg",
+                     description="공격/수비 중 하나를 선택해 주세요.",
+                     option_type=3,
+                     required=True,
+                     choices=[
+                         create_choice(
+                             name="공격",
+                             value="공격"
+                         ),
+                         create_choice(
+                             name="수비",
+                             value="수비"
+                         )
+                     ]
+                 )
+             ],
+             guild_ids=[GUILD_ID])
 @bot.command(aliases=command_aliases['오퍼'])
 async def 오퍼(ctx, arg):
     # 0 : Attacker / 1 : Defender
@@ -213,6 +256,10 @@ async def 오퍼(ctx, arg):
                              "\n<@" + str(ctx.author.id) + ">")
 
 
+@slash.slash(name="메뉴",
+             description="'오늘 뭐 먹지?' 메뉴를 추천해 드려요.",
+             options=[],
+             guild_ids=[GUILD_ID])
 @bot.command(aliases=command_aliases['메뉴'])
 async def 메뉴(ctx):
     menu, menu_p = dem.db_to_list(db, 'Menu', True)
@@ -221,6 +268,10 @@ async def 메뉴(ctx):
                          + "\n<@" + str(ctx.author.id) + ">")
 
 
+@slash.slash(name="식당",
+             description="'오늘 어디서 먹지?' 식당을 추천해 드려요.",
+             options=[],
+             guild_ids=[GUILD_ID])
 @bot.command(aliases=command_aliases['식당'])
 async def 식당(ctx):
     # 0 : Basic / 1 : Far / 2 : Your House
@@ -245,6 +296,41 @@ async def 식당(ctx):
                          + "\n<@" + str(ctx.author.id) + ">")
 
 
+@slash.slash(name="일정",
+             description="일정을 다수정예에서 관리해 보세요.",
+             options=[
+                 create_option(
+                     name="cmd_arg",
+                     description="어떤 작업을 할 건지 선택해 주세요.",
+                     option_type=3,
+                     required=True,
+                     choices=[
+                         create_choice(
+                             name="새로운 일정 추가",
+                             value="추가",
+                         ),
+                         create_choice(
+                             name="기존 일정 삭제",
+                             value="삭제"
+                         ),
+                         create_choice(
+                             name="일정 목록 보기",
+                             value="목록"
+                         ),
+                         create_choice(
+                             name="기존 일정 수정",
+                             value="수정"
+                         )
+                     ]
+                 ),
+                 create_option(
+                     name="schedule_arg",
+                     description="기존 일정을 삭제하거나 수정하려는 경우, 해당 일정의 이름을 입력해 주세요.",
+                     option_type=3,
+                     required=False
+                 )
+             ],
+             guild_ids=[GUILD_ID])
 @bot.command(aliases=command_aliases['일정'])
 async def 일정(ctx, cmd_arg, schedule_arg=''):
     schedule_channel = bot.get_channel(SCHEDULE_CHANNEL_ID)
@@ -353,12 +439,33 @@ async def 일정(ctx, cmd_arg, schedule_arg=''):
         await dem.send_embed(ctx, '오류가 발생했습니다.', '일정 관련 명령어 입력이 잘못되었습니다.')
 
 
+@slash.slash(name="소라고둥",
+             description="마법의 소라고둥이 둘 중 하나를 선택해 드려요.",
+             options=[
+                 create_option(
+                     name="arg1",
+                     description="고르려는 2개 중 하나를 입력해 주세요.",
+                     option_type=3,
+                     required=True
+                 ),
+                 create_option(
+                     name="arg2",
+                     description="고르려는 2개 중 나머지 하나를 입력해 주세요.",
+                     option_type=3,
+                     required=True
+                 )
+             ],
+             guild_ids=[GUILD_ID])
 @bot.command(aliases=command_aliases['소라고둥'])
 async def 소라고둥(ctx, arg1, arg2):
     srgd = dem.random([arg1, arg2], [0.5, 0.5])
     await dem.send_embed(ctx, "둘 중에서...", srgd + " 선택해.", "by 마법의 소라고둥 in 도비에몽")
 
 
+@slash.slash(name="처벌",
+             description="가벼운 잘못을 한 사람에게 랜덤으로 처벌을 주세요.",
+             options=[],
+             guild_ids=[GUILD_ID])
 @bot.command(aliases=command_aliases['처벌'])
 async def 처벌(ctx):
     ban_list = ['2초', '5초', '10초', '1분', '2분', '5분', '10분', '15분', '30분', '1시간', '용서']
@@ -367,6 +474,17 @@ async def 처벌(ctx):
     await dem.send_embed(ctx, "이번 사건은...", ban_result + ".")
 
 
+@slash.slash(name="음악",
+             description="나만의, 레어한 음악을 재생해 보세요.",
+             options=[
+                 create_option(
+                     name="music_keyword",
+                     description="재생하려는 음악에 포함되는 키워드를 입력해 주세요.",
+                     option_type=3,
+                     required=True
+                 )
+             ],
+             guild_ids=[GUILD_ID])
 @bot.command(aliases=command_aliases['음악'])
 async def 음악(ctx, *, music_keyword):
     if music_keyword == '목록':
@@ -409,6 +527,10 @@ async def 음악(ctx, *, music_keyword):
         await music.play_music(ctx, bot)
 
 
+@slash.slash(name="퇴장",
+             description="이미 음성 채널에 들어와 음악을 재생하고 있는 도비에몽을 내보낼 수 있습니다.",
+             options=[],
+             guild_ids=[GUILD_ID])
 @bot.command(aliases=command_aliases['퇴장'])
 async def 퇴장(ctx):
     guild = ctx.guild
@@ -420,21 +542,43 @@ async def 퇴장(ctx):
     await voice_client.disconnect()
 
 
+@slash.slash(name="스킵",
+             description="현재 재생되고 있는 음악을 멈추고, 다음으로 예정된 음악을 바로 재생할 수 있습니다.",
+             options=[],
+             guild_ids=[GUILD_ID])
 @bot.command(aliases=command_aliases['스킵'])
 async def 스킵(ctx):
     music.skip_music(ctx, bot)
 
 
+@slash.slash(name="추방투표",
+             description="한 사람이 마음에 들지 않는다면 추방 투표를 시작해 보세요.",
+             options=[
+                 create_option(
+                     name="vote_user_mention",
+                     description="마음에 들지 않는 그 사람을 멘션해 주세요.",
+                     option_type=6,
+                     required=True
+                 )
+             ],
+             guild_ids=[GUILD_ID])
 @bot.command(aliases=command_aliases['추방투표'])
 async def 추방투표(ctx, vote_user_mention):
-    vote_member = ctx.message.mentions[0]
+    if isinstance(vote_user_mention, discord.Member):
+        vote_member = vote_user_mention
+        author_id = ctx.author_id
+        guild = await bot.fetch_guild(ctx.guild_id)
+    else:
+        vote_member = ctx.message.mentions[0]
+        author_id = ctx.message.author.id
+        guild = ctx.guild
 
     agree_emoji = '\U0001F44D'
     disagree_emoji = '\U0001F44E'
     waiting_time = 30
     vote_message = await dem.send_embed(ctx, '추방 투표가 시작됩니다.',
-                                        '<@' + str(ctx.message.author.id) + '> 님이\n'
-                                        + vote_user_mention + ' 님에 대한 추방 투표를 열었습니다.'
+                                        '<@' + str(author_id) + '> 님이\n'
+                                        + '<@' + str(vote_member.id) + '> 님에 대한 추방 투표를 열었습니다.'
                                         + '\n\n찬성하시면, ' + str(waiting_time) +
                                         '초 내에 이 메시지에 반응 ' + agree_emoji + ' 을 달아 주세요.'
                                         + '\n반대하시면, ' + disagree_emoji + ' 을 달아 주세요.')
@@ -442,7 +586,7 @@ async def 추방투표(ctx, vote_user_mention):
     await vote_message.add_reaction(disagree_emoji)
     await asyncio.sleep(waiting_time)
 
-    vote_message_fetch = await ctx.fetch_message(vote_message.id)
+    vote_message_fetch = await ctx.channel.fetch_message(vote_message.id)
     agree_users_list = await dem.check_reaction_users(vote_message_fetch, agree_emoji)
     disagree_users_list = await dem.check_reaction_users(vote_message_fetch, disagree_emoji)
 
@@ -467,24 +611,35 @@ async def 추방투표(ctx, vote_user_mention):
     disagrees = len(real_disagree_users)
     if agrees > disagrees:
         await dem.send_embed(ctx, '추방하는 것으로 결정되었습니다.',
-                             vote_user_mention + ' 님의 추방이 찬성 ' + str(agrees) + '표,'
+                             '<@' + str(vote_member.id) + '> 님의 추방이 찬성 ' + str(agrees) + '표,'
                              + "\n반대 " + str(disagrees) + "표로 가결되었습니다.")
         try:
-            await vote_member.move_to(ctx.guild.afk_channel)
+            await vote_member.move_to(guild.afk_channel)
         except:
             await dem.send_embed(ctx, '오류가 발생했습니다.', '보내려는 유저를 잠수 채널로 보낼 수 없습니다.')
     else:
         await dem.send_embed(ctx, '추방하지 않는 것으로 결정되었습니다.',
-                             vote_user_mention + ' 님의 추방이 찬성 ' + str(agrees) + '표,'
+                             '<@' + str(vote_member.id) + '> 님의 추방이 찬성 ' + str(agrees) + '표,'
                              + "\n반대 " + str(disagrees) + "표로 부결되었습니다.")
 
 
+@slash.slash(name="룰렛",
+             description="재미있는 러시안 룰렛! 자신이 속한 음성 채널에 있는 사람들 중 하나가 잠수 채널로 이동됩니다.",
+             options=[],
+             guild_ids=[GUILD_ID])
 @bot.command(aliases=command_aliases['룰렛'])
 async def 룰렛(ctx):
+    if isinstance(ctx, SlashContext):
+        author_id = ctx.author_id
+        guild = await bot.fetch_guild(ctx.guild_id)
+    else:
+        author_id = ctx.message.author.id
+        guild = ctx.guild
+
     agree_emoji = '\U0001F44D'
     waiting_time = 30
     vote_message = await dem.send_embed(ctx, '러시안 룰렛이 시작됩니다!',
-                                        '<@' + str(ctx.message.author.id) + '> 님이\n'
+                                        '<@' + str(author_id) + '> 님이\n'
                                         + '러시안 룰렛을 시작했습니다.'
                                         + '\n\n참여를 원하시면, ' + str(waiting_time)
                                         + '초 내에 이 메시지에 반응 ' + agree_emoji + ' 을 달아 주세요.'
@@ -492,12 +647,12 @@ async def 룰렛(ctx):
     await vote_message.add_reaction(agree_emoji)
     await asyncio.sleep(waiting_time)
 
-    vote_message_fetch = await ctx.fetch_message(vote_message.id)
+    vote_message_fetch = await ctx.channel.fetch_message(vote_message.id)
     agree_users_list = await dem.check_reaction_users(vote_message_fetch, agree_emoji)
 
     real_agree_users = []
     for agree in agree_users_list:
-        agree_member = await ctx.guild.fetch_member(agree)
+        agree_member = await guild.fetch_member(agree)
         if not agree_member.bot and agree_member.voice:
             real_agree_users.append(agree)
 
@@ -507,25 +662,34 @@ async def 룰렛(ctx):
                          + '러시안 룰렛의 당첨자가 되셨습니다.')
 
     try:
-        selected_member = await ctx.guild.fetch_member(selected_user_id)
-        await selected_member.move_to(ctx.guild.afk_channel)
+        selected_member = await guild.fetch_member(selected_user_id)
+        await selected_member.move_to(guild.afk_channel)
     except:
         await dem.send_embed(ctx, '오류가 발생했습니다.', '보내려는 유저를 잠수 채널로 보낼 수 없습니다.')
 
 
+@slash.slash(name="팀",
+             description="내전을 하려 하나요? 도비에몽이 손쉽게 2개의 팀으로 나누어 줍니다.",
+             options=[],
+             guild_ids=[GUILD_ID])
 @bot.command(aliases=command_aliases['팀'])
 async def 팀(ctx):
+    if isinstance(ctx, SlashContext):
+        author_id = ctx.author_id
+    else:
+        author_id = ctx.message.author.id
+
     agree_emoji = '\U0001F44D'
     waiting_time = 30
     vote_message = await dem.send_embed(ctx, '팀 배정이 시작됩니다.',
-                                        '<@' + str(ctx.message.author.id) + '> 님이\n'
+                                        '<@' + str(author_id) + '> 님이\n'
                                         + '팀 배정을 시작했습니다.'
                                         + '\n\n참여를 원하시면, ' + str(waiting_time)
                                         + '초 내에 이 메시지에 반응 ' + agree_emoji + ' 을 달아 주세요.')
     await vote_message.add_reaction(agree_emoji)
     await asyncio.sleep(waiting_time)
 
-    vote_message_fetch = await ctx.fetch_message(vote_message.id)
+    vote_message_fetch = await ctx.channel.fetch_message(vote_message.id)
     agree_users_list = await dem.check_reaction_users(vote_message_fetch, agree_emoji)
 
     real_agree_users = []
@@ -556,19 +720,28 @@ async def 팀(ctx):
                          + '\n\n[블루 팀]\n' + blue_team_str)
 
 
+@slash.slash(name="끝말잇기",
+             description="사람들과 재미있는 끝말잇기를 시작해 보아요.",
+             options=[],
+             guild_ids=[GUILD_ID])
 @bot.command()
 async def 끝말잇기(ctx):
+    if isinstance(ctx, SlashContext):
+        author_id = ctx.author_id
+    else:
+        author_id = ctx.message.author.id
+
     agree_emoji = '\U0001F44D'
     waiting_time = 30
     vote_message = await dem.send_embed(ctx, '끝말잇기가 시작됩니다.',
-                                        '<@' + str(ctx.message.author.id) + '> 님이\n'
+                                        '<@' + str(author_id) + '> 님이\n'
                                         + '끝말잇기를 시작했습니다.'
                                         + '\n\n참여를 원하시면, ' + str(waiting_time)
                                         + '초 내에 이 메시지에 반응 ' + agree_emoji + ' 을 달아 주세요.')
     await vote_message.add_reaction(agree_emoji)
     await asyncio.sleep(waiting_time)
 
-    vote_message_fetch = await ctx.fetch_message(vote_message.id)
+    vote_message_fetch = await ctx.channel.fetch_message(vote_message.id)
     agree_users_list = await dem.check_reaction_users(vote_message_fetch, agree_emoji)
 
     real_agree_users = []
@@ -587,7 +760,7 @@ async def 끝말잇기(ctx):
     end_str = '\u23F9'
 
     past_message = await dem.send_embed(ctx, '끝말잇기를 시작합니다.',
-                                        '<@' + str(ctx.message.author.id) + '> 님이 제안하신 끝말잇기를 시작합니다.'
+                                        '<@' + str(author_id) + '> 님이 제안하신 끝말잇기를 시작합니다.'
                                         + '\n\n[참가자]\n' + agree_users_str
                                         + '\n\n[규칙]\n'
                                         + '- 자신의 차례가 되면 앞의 낱말의 끝 글자로 시작하는 낱말을 입력해 주세요.'
