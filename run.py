@@ -567,11 +567,11 @@ async def 추방투표(ctx, vote_user_mention):
     if isinstance(vote_user_mention, discord.Member):
         vote_member = vote_user_mention
         author_id = ctx.author_id
-        guild = await bot.fetch_guild(ctx.guild_id)
     else:
         vote_member = ctx.message.mentions[0]
         author_id = ctx.message.author.id
-        guild = ctx.guild
+
+    guild = ctx.guild
 
     agree_emoji = '\U0001F44D'
     disagree_emoji = '\U0001F44E'
@@ -631,10 +631,10 @@ async def 추방투표(ctx, vote_user_mention):
 async def 룰렛(ctx):
     if isinstance(ctx, SlashContext):
         author_id = ctx.author_id
-        guild = await bot.fetch_guild(ctx.guild_id)
     else:
         author_id = ctx.message.author.id
-        guild = ctx.guild
+
+    guild = ctx.guild
 
     agree_emoji = '\U0001F44D'
     waiting_time = 30
@@ -651,6 +651,7 @@ async def 룰렛(ctx):
     agree_users_list = await dem.check_reaction_users(vote_message_fetch, agree_emoji)
 
     real_agree_users = []
+
     for agree in agree_users_list:
         agree_member = await guild.fetch_member(agree)
         if not agree_member.bot and agree_member.voice:
@@ -794,7 +795,7 @@ async def 끝말잇기(ctx):
                 return message.author.id == real_agree_users[current_idx]
 
         def reaction_check(reaction, user):
-            return reaction.message == past_message and user.id in real_agree_users
+            return reaction.message.id == past_message.id and user.id in real_agree_users
 
         async def message_wait():
             try:
