@@ -32,11 +32,13 @@ if is_testing:
 else:
     token_key = 'token'
     command_prefix = '-'
+    TOKEN = os.environ['token']
 
 # Information
 with open('information.json') as json_file:
     json_data = json.load(json_file)
-    TOKEN = str(json_data[token_key])
+    if token_key == 'token_test':
+        TOKEN = str(json_data[token_key])
     SCHEDULE_CHANNEL_ID = int(json_data['schedule_channel_id'])
     SCHEDULE_NOTI_CHANNEL_ID = int(json_data['schedule_noti_channel_id'])
     OWNERS_ID = list(json_data['owners_id'])
